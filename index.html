@@ -101,6 +101,7 @@
         .status-text { margin-top: 3px; color: #eee; }
 
         /* 관리자 포스팅 폼 스타일 */
+        #adminPostArea { display: none; } /* 기본 숨김 */
         .admin-post-form { background: #1a1a1a; border: 1px solid var(--admin); padding: 20px; border-radius: 15px; margin-bottom: 30px; }
         .admin-post-form h3 { color: var(--admin); margin-top: 0; font-size: 1rem; }
         .media-preview { width: 100%; height: 200px; background: #000; border: 1px solid #333; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -133,7 +134,7 @@
             <h1>Weekly Schedule</h1>
             
             <div class="live-status-container">
-                <p style="font-size: 0.7rem; color: #888; margin-bottom: 10px;">Post your plan (Cost: 1,000 🪙)</p>
+                <p id="coinGuideText" style="font-size: 0.7rem; color: #888; margin-bottom: 10px;">Post your plan (Cost: 1,000 🪙)</p>
                 <div class="status-input-wrapper">
                     <input type="text" id="statusInput" class="status-input" placeholder="금요일에 클럽나인 갈 사람?">
                     <button class="status-post-btn" onclick="postLiveStatus()">POST</button>
@@ -250,19 +251,21 @@
         <div id="section-admin" class="section">
             <h1>Admin Panel</h1>
             
-            <div class="admin-post-form">
-                <h3>CREATE INSTA POST</h3>
-                <input type="text" id="postMediaUrl" placeholder="이미지 또는 비디오 URL" oninput="updateMediaPreview()">
-                <select id="postMediaType" onchange="updateMediaPreview()">
-                    <option value="image">이미지 (Image)</option>
-                    <option value="video">비디오 (Video)</option>
-                </select>
-                <div class="media-preview" id="mediaPreview">
-                    <span style="color:#444;">미리보기 없음</span>
+            <div id="adminPostArea">
+                <div class="admin-post-form">
+                    <h3>CREATE INSTA POST</h3>
+                    <input type="text" id="postMediaUrl" placeholder="이미지 또는 비디오 URL" oninput="updateMediaPreview()">
+                    <select id="postMediaType" onchange="updateMediaPreview()">
+                        <option value="image">이미지 (Image)</option>
+                        <option value="video">비디오 (Video)</option>
+                    </select>
+                    <div class="media-preview" id="mediaPreview">
+                        <span style="color:#444;">미리보기 없음</span>
+                    </div>
+                    <input type="text" id="postTitle" placeholder="제목 (Event Title)">
+                    <textarea id="postContent" style="width:100%; background:#000; border:1px solid #333; color:#fff; border-radius:10px; padding:10px; margin-bottom:10px; box-sizing:border-box; font-family:sans-serif;" rows="3" placeholder="내용을 입력하세요..."></textarea>
+                    <button class="btn" style="background:var(--admin); color:#000;" onclick="createAdminPost()">POST TO FEED</button>
                 </div>
-                <input type="text" id="postTitle" placeholder="제목 (Event Title)">
-                <textarea id="postContent" style="width:100%; background:#000; border:1px solid #333; color:#fff; border-radius:10px; padding:10px; margin-bottom:10px; box-sizing:border-box; font-family:sans-serif;" rows="3" placeholder="내용을 입력하세요..."></textarea>
-                <button class="btn" style="background:var(--admin); color:#000;" onclick="createAdminPost()">POST TO FEED</button>
             </div>
 
             <div id="adminList"></div>
@@ -297,7 +300,6 @@
     let currentUser = null;
     let userCash = parseInt(localStorage.getItem('clubNeinCash') || '1000'); 
     let liveStatuses = JSON.parse(localStorage.getItem('clubNeinStatuses') || '[]');
-    // 인스타 스타일 게시물 저장소 (관리자용)
     let adminPosts = JSON.parse(localStorage.getItem('clubNeinAdminPosts') || '[]');
 
     document.addEventListener('DOMContentLoaded', async () => { 
@@ -337,22 +339,46 @@
 
     async function checkUser(user) {
         currentUser = user;
+        const isAdmin = user && user.email === 'rutckjs@gmail.com';
+        
         if (user) {
             document.getElementById('displayUserEmail').innerText = user.email;
             document.getElementById('displayUserName').innerText = user.email.split('@')[0].toUpperCase();
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
-            if(user.email === 'rutckjs@gmail.com') document.getElementById('adminMenu').style.display = 'flex';
+            
+            // 관리자 전용 기능 노출 제어
+            if(isAdmin) {
+                document.getElementById('adminMenu').style.display = 'flex';
+                document.getElementById('adminPostArea').style.display = 'block';
+                document.getElementById('coinGuideText').innerText = "ADMIN MODE: Free Post & Unlimited Coins";
+            } else {
+                document.getElementById('adminMenu').style.display = 'none';
+                document.getElementById('adminPostArea').style.display = 'none';
+                document.getElementById('coinGuideText').innerText = "Post your plan (Cost: 1,000 🪙)";
+            }
         } else {
             document.getElementById('displayUserName').innerText = "GUEST";
             document.getElementById('myCashHeader').style.display = 'none';
+            document.getElementById('adminPostArea').style.display = 'none';
         }
+        updateCashUI();
     }
 
     function updateCashUI() {
-        document.getElementById('myCashHeader').innerText = `🪙 ${userCash.toLocaleString()}`;
-        document.getElementById('stat-cash').innerText = userCash.toLocaleString();
-        if(document.getElementById('usableCashDisplay')) document.getElementById('usableCashDisplay').innerText = `-${userCash.toLocaleString()}원`;
+        const isAdmin = currentUser && currentUser.email === 'rutckjs@gmail.com';
+        
+        if(isAdmin) {
+            document.getElementById('myCashHeader').innerText = "🪙 ∞";
+            document.getElementById('stat-cash').innerText = "∞ (Admin)";
+        } else {
+            document.getElementById('myCashHeader').innerText = `🪙 ${userCash.toLocaleString()}`;
+            document.getElementById('stat-cash').innerText = userCash.toLocaleString();
+        }
+        
+        if(document.getElementById('usableCashDisplay')) {
+            document.getElementById('usableCashDisplay').innerText = isAdmin ? "-0원 (Admin)" : `-${userCash.toLocaleString()}원`;
+        }
         calculatePrice();
     }
 
@@ -361,11 +387,18 @@
         const input = document.getElementById('statusInput');
         const text = input.value.trim();
         if(text === "") return;
-        if(userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
 
-        userCash -= 1000;
+        const isAdmin = currentUser.email === 'rutckjs@gmail.com';
+        
+        // 관리자가 아니면 코인 체크 및 차감
+        if(!isAdmin) {
+            if(userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
+            userCash -= 1000;
+            localStorage.setItem('clubNeinCash', userCash);
+        }
+
         const newStatus = {
-            user: currentUser.email.split('@')[0].toUpperCase(),
+            user: currentUser.email.split('@')[0].toUpperCase() + (isAdmin ? ' (ADMIN)' : ''),
             text: text,
             time: new Date().getTime()
         };
@@ -373,7 +406,6 @@
         if(liveStatuses.length > 20) liveStatuses.pop(); 
         
         localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
-        localStorage.setItem('clubNeinCash', userCash);
         
         input.value = "";
         updateCashUI();
@@ -390,7 +422,6 @@
         `).join('') || '<div style="color:#444; font-size:0.75rem;">첫 번째 소식을 남겨보세요!</div>';
     }
 
-    // 관리자 미디어 미리보기 업데이트
     function updateMediaPreview() {
         const url = document.getElementById('postMediaUrl').value;
         const type = document.getElementById('postMediaType').value;
@@ -400,12 +431,13 @@
         if(type === 'image') {
             preview.innerHTML = `<img src="${url}" onerror="this.src='https://via.placeholder.com/400x400?text=Invalid+Image'">`;
         } else {
-            preview.innerHTML = `<video src="${url}" autoplay muted loop onerror="this.innerHTML='Invalid Video'"></video>`;
+            preview.innerHTML = `<video src="${url}" autoplay muted loop></video>`;
         }
     }
 
-    // 관리자 인스타 게시물 생성
     function createAdminPost() {
+        if(!(currentUser && currentUser.email === 'rutckjs@gmail.com')) return alert("관리자만 가능합니다.");
+        
         const mediaUrl = document.getElementById('postMediaUrl').value;
         const mediaType = document.getElementById('postMediaType').value;
         const title = document.getElementById('postTitle').value;
@@ -425,14 +457,13 @@
         adminPosts.unshift(newPost);
         localStorage.setItem('clubNeinAdminPosts', JSON.stringify(adminPosts));
         
-        // 입력 필드 초기화
         document.getElementById('postMediaUrl').value = "";
         document.getElementById('postTitle').value = "";
         document.getElementById('postContent').value = "";
         updateMediaPreview();
 
         alert("게시물이 피드에 추가되었습니다!");
-        fetchParties(); // 피드 새로고침
+        fetchParties();
         switchTab('feed');
     }
 
@@ -443,7 +474,6 @@
         sel.innerHTML = '<option value="">Select Event</option>';
         feed.innerHTML = "";
 
-        // 1. 관리자가 생성한 인스타 스타일 포스트 먼저 렌더링
         adminPosts.forEach(p => {
             const mediaHtml = p.mediaType === 'image' 
                 ? `<img src="${p.mediaUrl}" style="width:100%;">` 
@@ -461,13 +491,11 @@
                         <div style="font-size:0.85rem; color:#ccc; line-height:1.4;">${p.content}</div>
                         <div style="margin-top:15px; display:flex; gap:10px;">
                             <button class="btn" style="padding:8px; font-size:0.7rem;" onclick="switchTab('order')">BOOK NOW</button>
-                            <button class="btn-alt" style="margin:0; padding:8px; font-size:0.7rem; flex:1;" onclick="alert('Shared!')">SHARE</button>
                         </div>
                     </div>
                 </div>`;
         });
 
-        // 2. 수파베이스 DB 파티 이벤트 렌더링
         if (data) {
             data.forEach(p => {
                 sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
@@ -513,9 +541,15 @@
     function calculatePrice() {
         const qty = parseInt(document.getElementById('uQty')?.value || 1);
         const totalBase = 20000 * qty;
-        const finalPrice = Math.max(0, totalBase - userCash);
+        const isAdmin = currentUser && currentUser.email === 'rutckjs@gmail.com';
+        
+        // 관리자는 무조건 0원 결제
+        const finalPrice = isAdmin ? 0 : Math.max(0, totalBase - userCash);
+        
         if(document.getElementById('basePriceDisplay')) document.getElementById('basePriceDisplay').innerText = `${totalBase.toLocaleString()}원`;
-        if(document.getElementById('finalPriceDisplay')) document.getElementById('finalPriceDisplay').innerText = `${finalPrice.toLocaleString()}원`;
+        if(document.getElementById('finalPriceDisplay')) {
+            document.getElementById('finalPriceDisplay').innerText = isAdmin ? "0원 (Admin Free)" : `${finalPrice.toLocaleString()}원`;
+        }
     }
 
     async function handleAuth() {
