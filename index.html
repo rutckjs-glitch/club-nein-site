@@ -314,10 +314,21 @@
         if(user) checkUser(user);
         else switchTab('auth');
 
-        // 비밀번호 창에서 엔터키 로그인 지원
         document.getElementById('authPassword').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') handleAuth();
         });
+
+        // --- 실시간 채널 구독 시작 ---
+        const channel = _supabase.channel('global_feed')
+            .on('broadcast', { event: 'new_message' }, ({ payload }) => {
+                // 수신된 실시간 메시지를 리스트 상단에 추가
+                liveStatuses.unshift(payload);
+                if (liveStatuses.length > 50) liveStatuses.pop();
+                localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
+                renderLiveStatuses();
+            })
+            .subscribe();
+        // --- 실시간 채널 구독 끝 ---
 
         fetchParties();
         updateNotiUI();
@@ -329,17 +340,11 @@
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         const btn = document.getElementById('loginSubmitBtn');
-
         if(!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
-
         btn.innerText = "CHECKING...";
         btn.disabled = true;
-
-        // 로그인 시도
         const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-        
         if (error) {
-            // 계정이 없으면 회원가입 시도
             const { error: signUpErr } = await _supabase.auth.signUp({ email, password });
             if(signUpErr) {
                 alert(signUpErr.message);
@@ -359,13 +364,11 @@
     async function checkUser(user) {
         currentUser = user;
         const isAdmin = user && user.email === 'rutckjs@gmail.com';
-        
         if (user) {
             document.getElementById('displayUserEmail').innerText = user.email;
             document.getElementById('displayUserName').innerText = user.email.split('@')[0].toUpperCase();
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
-            
             if(isAdmin) {
                 document.getElementById('adminMenu').style.display = 'flex';
                 document.getElementById('adminAddBtn').style.display = 'flex';
@@ -401,25 +404,39 @@
         calculatePrice();
     }
 
+    // --- 실시간 포스팅 핵심 기능 ---
     function postLiveStatus() {
         if(!currentUser) return switchTab('auth');
         const input = document.getElementById('statusInput');
         const text = input.value.trim();
         if(text === "") return;
+        
         const isAdmin = currentUser.email === 'rutckjs@gmail.com';
         if(!isAdmin && userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
+        
         if(!isAdmin) {
             userCash -= 1000;
             localStorage.setItem('clubNeinCash', userCash);
         }
+
         const newStatus = {
             user: currentUser.email.split('@')[0].toUpperCase(),
             text: text,
             time: new Date().getTime(),
             type: isAdmin ? 'ADMIN_POST' : 'USER_POST'
         };
+
+        // 전역 브로드캐스트 전송 (접속한 모든 사람에게 쏘기)
+        _supabase.channel('global_feed').send({
+            type: 'broadcast',
+            event: 'new_message',
+            payload: newStatus
+        });
+
+        // 본인 화면에도 즉시 추가
         liveStatuses.unshift(newStatus);
         localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
+        
         input.value = "";
         updateCashUI();
         renderLiveStatuses();
@@ -428,7 +445,7 @@
     function renderLiveStatuses() {
         const list = document.getElementById('liveStatusList');
         list.innerHTML = liveStatuses.map(s => `
-            <div class="live-status-item" style="${s.type === 'ADMIN_POST' ? 'border-color: var(--admin);' : ''}">
+            <div class="live-status-item" style="${s.type === 'ADMIN_POST' ? 'border-color: var(--admin); background: rgba(0, 255, 65, 0.05);' : ''}">
                 <div class="status-user">${s.type === 'ADMIN_POST' ? '📢 ADMIN' : s.user}</div>
                 <div class="status-text">${s.text}</div>
             </div>
@@ -465,7 +482,6 @@
         const sel = document.getElementById('partySelect');
         sel.innerHTML = '<option value="">Select Event</option>';
         feed.innerHTML = "";
-
         adminPosts.forEach(p => {
             feed.innerHTML += `
                 <div class="feed-item" style="border: 1px solid #333;">
