@@ -91,7 +91,7 @@
         .noti-box { position: fixed; top: 60px; right: 20px; width: 300px; background: #111; border: 1px solid #333; border-radius: 15px; display: none; z-index: 4000; box-shadow: 0 10px 30px rgba(0,0,0,1); }
         .noti-badge { background: var(--neon); color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 50%; position: absolute; top: 5px; right: 5px; }
 
-        /* 추가: 실시간 텍스트 피드 스타일 */
+        /* 실시간 텍스트 피드 스타일 */
         .live-status-container { background: #111; border: 1px solid #333; border-radius: 15px; padding: 15px; margin-bottom: 20px; }
         .status-input-wrapper { display: flex; gap: 10px; margin-bottom: 10px; }
         .status-input { flex: 1; background: #000; border: 1px solid #333; color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem; }
@@ -100,7 +100,7 @@
         .status-user { font-weight: bold; color: #888; font-size: 0.7rem; }
         .status-text { margin-top: 3px; color: #eee; }
 
-        /* 관리자 포스팅 폼 스타일 (인스타 스타일) */
+        /* 관리자 포스팅 폼 스타일 */
         .admin-post-form { background: #1a1a1a; border: 1px solid var(--admin); padding: 20px; border-radius: 15px; margin-bottom: 30px; display: none; }
         .admin-post-form h3 { color: var(--admin); margin-top: 0; font-size: 1rem; }
         .media-preview { width: 100%; height: 200px; background: #000; border: 1px solid #333; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -292,12 +292,16 @@
 <script>
     const SUPABASE_URL = 'https://yyvozhlkohtclyhyigbs.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5dm96aGxrb2h0Y2x5aHlpZ2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDA1ODUsImV4cCI6MjA5MDg3NjU4NX0.2ZE1uL4CRmrCjlOTgCl0qONZE15MhqetzUqysIIq7H0';
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // 실시간 감지를 위해 클라이언트 생성 시 옵션 추가
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        realtime: { params: { eventsPerSecond: 10 } }
+    });
 
     let myNotifications = JSON.parse(localStorage.getItem('clubNeinInbox') || '[]');
     let currentUser = null;
     let userCash = parseInt(localStorage.getItem('clubNeinCash') || '1000'); 
-    let liveStatuses = JSON.parse(localStorage.getItem('clubNeinStatuses') || '[]');
+    let liveStatuses = []; // 초기값 비움 (DB에서 가져옴)
     let adminPosts = JSON.parse(localStorage.getItem('clubNeinAdminPosts') || '[]');
 
     document.addEventListener('DOMContentLoaded', async () => { 
@@ -314,32 +318,60 @@
         if(user) checkUser(user);
         else switchTab('auth');
 
-        // 비밀번호 창에서 엔터키 로그인 지원
-        document.getElementById('authPassword').addEventListener('keypress', function(e) {
+        // 엔터키 로그인 지원
+        document.getElementById('authPassword').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleAuth();
         });
+
+        // [실시간 핵심 1] 과거 메시지 불러오기 (새로고침 시 유지)
+        const { data: initialMsgs } = await _supabase
+            .from('live_messages')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(30);
+        
+        if(initialMsgs) {
+            liveStatuses = initialMsgs.map(m => ({
+                user: m.user_name,
+                text: m.content,
+                type: m.type
+            }));
+            renderLiveStatuses();
+        }
+
+        // [실시간 핵심 2] 테이블 변경 구독 (다른 유저가 쓴 글 실시간 노출)
+        _supabase
+            .channel('live_messages_realtime')
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'live_messages' 
+            }, (payload) => {
+                const newMsg = {
+                    user: payload.new.user_name,
+                    text: payload.new.content,
+                    type: payload.new.type
+                };
+                liveStatuses.unshift(newMsg);
+                if (liveStatuses.length > 50) liveStatuses.pop();
+                renderLiveStatuses();
+            })
+            .subscribe();
 
         fetchParties();
         updateNotiUI();
         renderGlobalFriends();
-        renderLiveStatuses();
     });
 
     async function handleAuth() {
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         const btn = document.getElementById('loginSubmitBtn');
-
         if(!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
-
         btn.innerText = "CHECKING...";
         btn.disabled = true;
-
-        // 로그인 시도
         const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-        
         if (error) {
-            // 계정이 없으면 회원가입 시도
             const { error: signUpErr } = await _supabase.auth.signUp({ email, password });
             if(signUpErr) {
                 alert(signUpErr.message);
@@ -359,13 +391,11 @@
     async function checkUser(user) {
         currentUser = user;
         const isAdmin = user && user.email === 'rutckjs@gmail.com';
-        
         if (user) {
             document.getElementById('displayUserEmail').innerText = user.email;
             document.getElementById('displayUserName').innerText = user.email.split('@')[0].toUpperCase();
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
-            
             if(isAdmin) {
                 document.getElementById('adminMenu').style.display = 'flex';
                 document.getElementById('adminAddBtn').style.display = 'flex';
@@ -401,34 +431,43 @@
         calculatePrice();
     }
 
-    function postLiveStatus() {
+    // [실시간 핵심 3] 메시지 작성 시 DB에 Insert
+    async function postLiveStatus() {
         if(!currentUser) return switchTab('auth');
         const input = document.getElementById('statusInput');
         const text = input.value.trim();
         if(text === "") return;
+        
         const isAdmin = currentUser.email === 'rutckjs@gmail.com';
         if(!isAdmin && userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
-        if(!isAdmin) {
-            userCash -= 1000;
-            localStorage.setItem('clubNeinCash', userCash);
+        
+        // DB 저장 시도
+        const { error } = await _supabase
+            .from('live_messages')
+            .insert([{
+                user_id: currentUser.id,
+                user_name: currentUser.email.split('@')[0].toUpperCase(),
+                content: text,
+                type: isAdmin ? 'ADMIN_POST' : 'USER_POST'
+            }]);
+
+        if (!error) {
+            if(!isAdmin) {
+                userCash -= 1000;
+                localStorage.setItem('clubNeinCash', userCash);
+                updateCashUI();
+            }
+            input.value = "";
+        } else {
+            console.error(error);
+            alert("전송 실패: SQL 설정을 확인하세요.");
         }
-        const newStatus = {
-            user: currentUser.email.split('@')[0].toUpperCase(),
-            text: text,
-            time: new Date().getTime(),
-            type: isAdmin ? 'ADMIN_POST' : 'USER_POST'
-        };
-        liveStatuses.unshift(newStatus);
-        localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
-        input.value = "";
-        updateCashUI();
-        renderLiveStatuses();
     }
 
     function renderLiveStatuses() {
         const list = document.getElementById('liveStatusList');
         list.innerHTML = liveStatuses.map(s => `
-            <div class="live-status-item" style="${s.type === 'ADMIN_POST' ? 'border-color: var(--admin);' : ''}">
+            <div class="live-status-item" style="${s.type === 'ADMIN_POST' ? 'border-color: var(--admin); background: rgba(0, 255, 65, 0.05);' : ''}">
                 <div class="status-user">${s.type === 'ADMIN_POST' ? '📢 ADMIN' : s.user}</div>
                 <div class="status-text">${s.text}</div>
             </div>
@@ -465,7 +504,6 @@
         const sel = document.getElementById('partySelect');
         sel.innerHTML = '<option value="">Select Event</option>';
         feed.innerHTML = "";
-
         adminPosts.forEach(p => {
             feed.innerHTML += `
                 <div class="feed-item" style="border: 1px solid #333;">
