@@ -11,6 +11,7 @@
         :root { --neon: #ff0000; --bg: #050505; --card: #121212; --admin: #00ff41; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0 20px 20px 20px; display: flex; flex-direction: column; align-items: center; }
         
+        /* 추가: 모든 페이지 고정 로고 헤더 */
         .fixed-logo-header { 
             position: sticky; 
             top: 0; 
@@ -35,6 +36,7 @@
 
         .container { background: var(--card); border: 1px solid #333; width: 100%; max-width: 450px; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; position: relative; }
         
+        /* 알림 및 인증 UI */
         .header-tools { width: 100%; max-width: 450px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
         .user-info { font-size: 0.75rem; color: #888; }
         .auth-btn { background: none; border: 1px solid #444; color: #ccc; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 0.7rem; }
@@ -63,6 +65,7 @@
         .qr-placeholder { padding: 30px; color: #ff3e3e; font-weight: bold; border: 2px dashed #ff3e3e; margin: 15px 0; border-radius: 10px; background: #fff5f5; }
         #qrArea { display: flex; justify-content: center; margin: 20px 0; min-height: 160px; }
 
+        /* 추가: 저장 버튼 스타일 */
         .btn-save { background: #000; color: #fff; margin-top: 15px; padding: 12px; font-size: 0.85rem; display: none; }
 
         .admin-item { border-bottom: 1px solid #333; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
@@ -70,6 +73,7 @@
         .approved-tag { background: #004411; color: #00ff41; border: 1px solid #00ff41; }
         .approve-btn { background: var(--admin); color: black; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
+        /* 마이페이지 전용 스타일 */
         .mypage-profile { text-align: center; margin-bottom: 30px; }
         .profile-img { width: 80px; height: 80px; background: linear-gradient(45deg, #333, var(--neon)); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 2px solid #555; }
         .mypage-stat { display: flex; justify-content: space-around; background: #1a1a1a; padding: 15px; border-radius: 15px; margin-bottom: 25px; border: 1px solid #333; }
@@ -82,6 +86,7 @@
         .menu-item span { font-size: 0.9rem; font-weight: bold; }
         .menu-icon { color: var(--neon); }
 
+        /* 달력 및 참석자 리스트 */
         .profile-bio { background: #1a1a1a; border: 1px dotted #444; padding: 15px; border-radius: 12px; font-size: 0.85rem; color: #bbb; margin-bottom: 20px; text-align: left; }
         .bio-edit-btn { font-size: 0.7rem; color: var(--neon); cursor: pointer; float: right; }
         
@@ -111,6 +116,7 @@
             .calendar-pc-container { display: none; } 
         }
 
+        /* 피드 스타일 (Instagram Like) */
         .feed-container { width: 100%; display: flex; flex-direction: column; gap: 20px; }
         .feed-item { background: var(--card); border: 1px solid #333; border-radius: 15px; overflow: hidden; position: relative; }
         .feed-header { padding: 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #222; }
@@ -124,6 +130,19 @@
         .feed-caption { padding: 8px 12px 15px; font-size: 0.85rem; color: #ccc; line-height: 1.4; }
         .feed-caption b { color: #fff; margin-right: 5px; }
         .feed-tag { display: inline-block; background: #222; color: var(--neon); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-top: 5px; font-weight: bold; border: 1px solid #333; }
+
+        /* 추가: 글로벌 매치(친구찾기) 스타일 */
+        .match-container { display: flex; flex-direction: column; gap: 15px; }
+        .match-card { background: #1a1a1a; border-radius: 20px; padding: 20px; border: 1px solid #333; display: flex; align-items: center; gap: 15px; position: relative; transition: 0.3s; }
+        .match-card:hover { border-color: var(--neon); transform: translateY(-3px); }
+        .match-photo { width: 65px; height: 65px; border-radius: 18px; background: #333; border: 2px solid #444; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+        .match-info { flex: 1; }
+        .match-name { font-weight: bold; font-size: 1rem; color: #fff; margin-bottom: 4px; }
+        .match-lang { font-size: 0.75rem; color: #888; display: flex; align-items: center; gap: 5px; }
+        .match-interest { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+        .interest-tag { font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: #2a2a2a; color: #ccc; border: 1px solid #333; }
+        .match-btn { background: var(--neon); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 1rem; }
+        .online-dot { width: 8px; height: 8px; background: #00ff41; border-radius: 50%; position: absolute; top: 20px; right: 20px; }
     </style>
 </head>
 <body>
@@ -151,6 +170,7 @@
 
     <div class="nav">
         <button id="btn-feed" class="nav-btn active" onclick="switchTab('feed')">FEED</button>
+        <button id="btn-match" class="nav-btn" onclick="switchTab('match')">GLOBAL</button>
         <button id="btn-auth" class="nav-btn" onclick="switchTab('auth')">LOGIN</button>
         <button id="btn-order" class="nav-btn" onclick="switchTab('order')">ORDER</button>
         <button id="btn-check" class="nav-btn" onclick="switchTab('check')">TICKET</button>
@@ -160,6 +180,14 @@
     </div>
 
     <div class="container">
+        <div id="section-match" class="section">
+            <h1>FIND FRIENDS</h1>
+            <p style="text-align:center; font-size:0.8rem; color:#888; margin-bottom:20px;">함께 파티를 즐길 글로벌 친구를 찾아보세요!</p>
+            <div id="matchList" class="match-container">
+                </div>
+            <button class="btn btn-alt" style="margin-top:20px;" onclick="renderGlobalFriends()">새로고침 / REFRESH</button>
+        </div>
+
         <div id="section-feed" class="section active">
             <h1>PARTY FEED</h1>
             <div id="partyFeed" class="feed-container">
@@ -299,6 +327,7 @@
         updateNotiUI();
         requestNotificationPermission();
         listenForApprovals();
+        renderGlobalFriends(); // 글로벌 친구 목록 로드
         
         if(myWatchingTicketId) autoCheckStatus();
         const savedBio = localStorage.getItem('clubNeinBio');
@@ -334,6 +363,37 @@
             document.getElementById('orderForm').style.display = 'none';
             document.getElementById('btn-admin').style.display = 'none';
         }
+    }
+
+    // 추가: 글로벌 친구 목록 랜덤 렌더링 함수
+    function renderGlobalFriends() {
+        const list = document.getElementById('matchList');
+        const users = [
+            { name: "ALICE", country: "🇺🇸 USA", bio: "Techno Lover", interests: ["Techno", "House"], icon: "👩‍🦳" },
+            { name: "SATO", country: "🇯🇵 Japan", bio: "Drill & Trap", interests: ["Hip-hop", "Trap"], icon: "👨‍💻" },
+            { name: "TIYA", country: "🇰🇷 Korea", bio: "Let's Party!", interests: ["EDM", "Pop"], icon: "👸" },
+            { name: "LUCAS", country: "🇧🇷 Brazil", bio: "Energy only", interests: ["Bass", "Techno"], icon: "🤵" },
+            { name: "ELENA", country: "🇷🇺 Russia", bio: "Dance all night", interests: ["Trance", "Techno"], icon: "💃" }
+        ];
+        
+        list.innerHTML = "";
+        const shuffled = users.sort(() => 0.5 - Math.random());
+        shuffled.forEach(u => {
+            list.innerHTML += `
+                <div class="match-card">
+                    <div class="match-photo">${u.icon}</div>
+                    <div class="match-info">
+                        <div class="match-name">${u.name}</div>
+                        <div class="match-lang">${u.country} · ${u.bio}</div>
+                        <div class="match-interest">
+                            ${u.interests.map(i => `<span class="interest-tag">${i}</span>`).join('')}
+                        </div>
+                    </div>
+                    <button class="match-btn" onclick="alert('${u.name}님에게 하트를 보냈습니다!')">❤️</button>
+                    <div class="online-dot"></div>
+                </div>
+            `;
+        });
     }
 
     async function updateMyStats(userId) {
@@ -507,7 +567,7 @@
         const targetSection = document.getElementById('section-' + tab);
         if(targetSection) targetSection.classList.add('active');
         
-        const btnId = 'btn-' + tab; // 탭 이름과 버튼 ID 일치시킴
+        const btnId = 'btn-' + tab; 
         const targetBtn = document.getElementById(btnId);
         if(targetBtn) targetBtn.classList.add('active');
         
