@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLUB NEIN | ADMIN</title>
+    <title>CLUB NEIN | ADMIN SYSTEM</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --neon: #ff0000; --bg: #050505; --card: #121212; --admin: #00ff41; }
@@ -13,25 +13,36 @@
         .section.active { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* 입력창 스타일 */
+        /* 공통 UI */
+        h1 { color: var(--neon); letter-spacing: 2px; }
         input, select, textarea { background: #1a1a1a; border: 1px solid #333; color: white; padding: 12px; width: 100%; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         .btn { background: var(--neon); color: black; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        
-        /* 관리자 전용 스타일 */
-        .admin-post-form { background: #111; border: 1px solid var(--admin); padding: 20px; border-radius: 15px; margin-top: 20px; }
-        .admin-fab { position: fixed; bottom: 90px; right: 20px; width: 60px; height: 60px; background: var(--admin); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 2rem; color: black; z-index: 9999; cursor: pointer; }
+
+        /* ✅ 관리자 전용 플로팅 버튼 (강제 스타일) */
+        #adminAddBtn { 
+            position: fixed; bottom: 90px; right: 20px; width: 60px; height: 60px; 
+            background: var(--admin); border-radius: 50%; display: none; /* 기본 숨김 */
+            align-items: center; justify-content: center; font-size: 2rem; 
+            color: black; z-index: 9999; cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,65,0.5);
+        }
+
+        /* 관리자 폼 스타일 */
+        .admin-post-form { background: #111; border: 1px solid var(--admin); padding: 20px; border-radius: 15px; margin-top: 10px; }
         .media-preview { width: 100%; height: 200px; background: #000; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px dashed #333; }
         .media-preview img, .media-preview video { max-width: 100%; max-height: 100%; }
 
         /* 하단 네비게이션 */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 500px; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 10px 0; }
-        .nav-item { color: #666; background: none; border: none; font-size: 0.7rem; cursor: pointer; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 500px; background: #000; border-top: 1px solid #222; display: flex; justify-content: space-around; padding: 10px 0; z-index: 2000; }
+        .nav-item { color: #666; background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 10px; }
         .nav-item.active { color: var(--neon); }
+
+        /* 피드 스타일 */
+        .feed-item { background: var(--card); border: 1px solid #222; border-radius: 15px; overflow: hidden; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="adminAddBtn" class="admin-fab" onclick="switchTab('admin')">+</div>
+    <div id="adminAddBtn" onclick="switchTab('admin')">+</div>
 
     <div class="container">
         <div id="section-feed" class="section active">
@@ -40,43 +51,46 @@
         </div>
 
         <div id="section-admin" class="section">
-            <h1 style="color: var(--admin);">Admin Dashboard</h1>
+            <h1 style="color: var(--admin);">Admin Panel</h1>
             <div class="admin-post-form">
-                <h3>NEW POST</h3>
-                <input type="text" id="postMediaUrl" placeholder="이미지/영상 URL" oninput="updateMediaPreview()">
+                <h3 style="margin-top:0;">신규 게시물 올리기</h3>
+                <input type="text" id="postMediaUrl" placeholder="이미지 또는 영상 URL" oninput="updateMediaPreview()">
                 <select id="postMediaType" onchange="updateMediaPreview()">
-                    <option value="image">Image</option>
-                    <option value="video">Video</option>
+                    <option value="image">이미지(Image)</option>
+                    <option value="video">비디오(Video)</option>
                 </select>
-                <div class="media-preview" id="mediaPreview">미리보기</div>
-                <input type="text" id="postTitle" placeholder="제목">
-                <textarea id="postContent" rows="4" placeholder="내용"></textarea>
-                <button class="btn" style="background: var(--admin);" onclick="createAdminPost()">UPLOAD TO FEED</button>
+                <div class="media-preview" id="mediaPreview"><span style="color:#444;">미리보기</span></div>
+                <input type="text" id="postTitle" placeholder="이벤트 제목">
+                <textarea id="postContent" rows="4" placeholder="상세 내용 설명..."></textarea>
+                <button class="btn" style="background: var(--admin);" onclick="createAdminPost()">피드 게시물 업로드</button>
             </div>
         </div>
 
         <div id="section-mypage" class="section">
-            <h1>Profile</h1>
-            <h3 id="displayUserName">GUEST</h3>
-            <p id="displayUserEmail"></p>
-            <p>Cash: <span id="stat-cash" style="color: gold;">0</span></p>
-            <div id="adminMenu" style="display:none; border: 1px solid var(--admin); padding: 15px; border-radius: 10px; margin-top: 10px;" onclick="switchTab('admin')">
-                <span style="color: var(--admin);">⚙️ 관리자 패널 이동</span>
+            <h1>My Profile</h1>
+            <div style="background:#111; padding:20px; border-radius:15px; border:1px solid #222;">
+                <h3 id="displayUserName" style="margin:0;">GUEST</h3>
+                <p id="displayUserEmail" style="color:#666; font-size:0.8rem;"></p>
+                <p>잔여 코인: <span id="stat-cash" style="color: gold; font-weight: bold;">0</span></p>
+                
+                <div id="adminMenu" style="display:none; border: 1px solid var(--admin); padding: 15px; border-radius: 10px; margin-top: 15px; cursor: pointer; text-align: center; background: rgba(0,255,65,0.05);" onclick="switchTab('admin')">
+                    <span style="color: var(--admin); font-weight: bold;">⚙️ 관리자 시스템 접속</span>
+                </div>
             </div>
-            <button class="btn" style="margin-top: 20px;" onclick="_supabase.auth.signOut()">Logout</button>
+            <button class="btn" style="margin-top: 20px; background:#333; color:white;" onclick="handleLogout()">로그아웃</button>
         </div>
 
         <div id="section-auth" class="section">
             <h1>Login</h1>
-            <input type="email" id="authEmail" placeholder="Email">
-            <input type="password" id="authPassword" placeholder="Password">
-            <button class="btn" onclick="handleAuth()">Login / Sign Up</button>
+            <input type="email" id="authEmail" placeholder="이메일 주소">
+            <input type="password" id="authPassword" placeholder="비밀번호">
+            <button class="btn" onclick="handleAuth()">접속하기</button>
         </div>
     </div>
 
     <nav class="bottom-nav">
         <button class="nav-item active" onclick="switchTab('feed')">📅 Feed</button>
-        <button class="nav-item" onclick="switchTab('mypage')">👤 My</button>
+        <button class="nav-item" onclick="switchTab('mypage')">👤 MyPage</button>
     </nav>
 
 <script>
@@ -86,70 +100,102 @@
 
     let currentUser = null;
 
-    // 핵심: 에러 방지용 안전한 텍스트 설정 함수
-    function safeSetText(id, text) {
+    // 🔴 에러 방지용 안전한 요소 체크 함수
+    function updateElement(id, property, value, isStyle = false) {
         const el = document.getElementById(id);
-        if (el) el.innerText = text;
+        if (el) {
+            if (isStyle) el.style.display = value;
+            else el[property] = value;
+        }
     }
 
+    // 🟢 관리자 및 유저 체크 (에러 완벽 차단)
     async function checkUser(user) {
         currentUser = user;
         if (!user) {
             switchTab('auth');
+            updateElement('adminAddBtn', 'display', 'none', true);
             return;
         }
 
         const isAdmin = user.email === 'rutckjs@gmail.com';
-
-        // 안전하게 텍스트 넣기 (에러 방지)
-        safeSetText('displayUserEmail', user.email);
-        safeSetText('displayUserName', user.email.split('@')[0].toUpperCase());
+        
+        updateElement('displayUserEmail', 'innerText', user.email);
+        updateElement('displayUserName', 'innerText', user.email.split('@')[0].toUpperCase());
         
         if (isAdmin) {
-            safeSetText('stat-cash', '∞ (Admin)');
-            if(document.getElementById('adminAddBtn')) document.getElementById('adminAddBtn').style.display = 'flex';
-            if(document.getElementById('adminMenu')) document.getElementById('adminMenu').style.display = 'block';
+            updateElement('stat-cash', 'innerText', '∞ (ADMIN)');
+            updateElement('adminAddBtn', 'display', 'flex', true); // 플러스 버튼 표시
+            updateElement('adminMenu', 'display', 'block', true); // 마이페이지 메뉴 표시
         } else {
-            safeSetText('stat-cash', '1,000');
+            updateElement('stat-cash', 'innerText', '1,000');
+            updateElement('adminAddBtn', 'display', 'none', true);
+            updateElement('adminMenu', 'display', 'none', true);
         }
+        
+        fetchParties(); // 피드 데이터 로드
     }
 
+    // 탭 전환
     function switchTab(tab) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         const target = document.getElementById('section-' + tab);
         if (target) target.classList.add('active');
-        
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+        // 하단바 아이콘 색상 변경
+        document.querySelectorAll('.nav-item').forEach(n => {
+            if (n.innerText.toLowerCase().includes(tab)) n.classList.add('active');
+            else n.classList.remove('active');
+        });
     }
 
-    // 초기 실행 로직
-    _supabase.auth.onAuthStateChange((event, session) => {
-        checkUser(session?.user);
-    });
-
+    // 관리자 포스팅 업로드
     async function createAdminPost() {
         const title = document.getElementById('postTitle').value;
         const content = document.getElementById('postContent').value;
         const url = document.getElementById('postMediaUrl').value;
         const type = document.getElementById('postMediaType').value;
 
+        if(!title || !content) return alert("제목과 내용을 입력하세요.");
+
         const { error } = await _supabase.from('events').insert([{
-            title, content, 
+            title: title,
+            content: content,
             image_url: type === 'image' ? url : null,
             video_url: type === 'video' ? url : null
         }]);
 
         if (!error) {
-            alert("게시 완료!");
+            alert("공식 피드가 게시되었습니다!");
             location.reload();
+        } else {
+            alert("오류: " + error.message);
         }
+    }
+
+    // 피드 불러오기
+    async function fetchParties() {
+        const { data } = await _supabase.from('events').select('*').order('created_at', { ascending: false });
+        const feed = document.getElementById('partyFeed');
+        if (!feed) return;
+
+        feed.innerHTML = data && data.length > 0 ? data.map(p => `
+            <div class="feed-item">
+                <div style="padding:12px; font-weight:bold; color:var(--admin); font-size:0.8rem;">OFFICIAL POST</div>
+                ${p.video_url ? `<video src="${p.video_url}" style="width:100%;" autoplay muted loop></video>` : `<img src="${p.image_url || 'https://via.placeholder.com/400'}" style="width:100%;">`}
+                <div style="padding:15px;">
+                    <div style="color:var(--neon); font-weight:bold; font-size:1.2rem;">${p.title}</div>
+                    <p style="font-size:0.9rem; color:#ccc; line-height:1.5;">${p.content}</p>
+                </div>
+            </div>
+        `).join('') : '<p style="text-align:center; color:#444;">게시물이 없습니다.</p>';
     }
 
     function updateMediaPreview() {
         const url = document.getElementById('postMediaUrl').value;
         const type = document.getElementById('postMediaType').value;
         const preview = document.getElementById('mediaPreview');
-        if(!url) return;
+        if(!url || !preview) return;
         preview.innerHTML = type === 'image' ? `<img src="${url}">` : `<video src="${url}" autoplay muted loop></video>`;
     }
 
@@ -157,8 +203,18 @@
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         const { error } = await _supabase.auth.signInWithPassword({ email, password });
-        if (error) await _supabase.auth.signUp({ email, password });
+        if (error) {
+            const { error: signUpErr } = await _supabase.auth.signUp({ email, password });
+            if(signUpErr) alert(signUpErr.message);
+        }
     }
+
+    function handleLogout() { _supabase.auth.signOut(); location.reload(); }
+
+    // 초기 실행
+    _supabase.auth.onAuthStateChange((event, session) => {
+        checkUser(session?.user);
+    });
 </script>
 </body>
 </html>
