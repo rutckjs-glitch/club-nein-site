@@ -234,11 +234,20 @@
         </div>
 
         <div id="section-auth" class="section">
-            <h1>Login</h1>
-            <input type="email" id="authEmail" placeholder="Email">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🔴</div>
+                <h1 style="text-align: center; margin: 0;">CLUB NEIN</h1>
+                <p style="color: #555; font-size: 0.9rem;">The Future of Clubbing</p>
+            </div>
+            
+            <input type="email" id="authEmail" placeholder="Email Address">
             <input type="password" id="authPassword" placeholder="Password">
-            <button class="btn" onclick="handleAuth()">Login / Sign Up</button>
-            <p style="font-size:0.7rem; color:#666; margin-top:15px; text-align:center;">계정이 없으면 자동으로 가입됩니다.</p>
+            
+            <button class="btn" id="loginSubmitBtn" onclick="handleAuth()">ENTER THE CLUB</button>
+            
+            <p style="font-size:0.75rem; color:#888; margin-top:20px; text-align:center; line-height: 1.5;">
+                계정이 없으신가요? 이메일과 비밀번호 입력 후 버튼을 누르면 <b style="color: var(--neon);">자동으로 회원가입</b>이 진행됩니다.
+            </p>
         </div>
 
         <div id="section-order" class="section">
@@ -305,6 +314,11 @@
         if(user) checkUser(user);
         else switchTab('auth');
 
+        // 비밀번호 창에서 엔터키 로그인 지원
+        document.getElementById('authPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleAuth();
+        });
+
         fetchParties();
         updateNotiUI();
         renderGlobalFriends();
@@ -314,7 +328,12 @@
     async function handleAuth() {
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
+        const btn = document.getElementById('loginSubmitBtn');
+
         if(!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
+
+        btn.innerText = "CHECKING...";
+        btn.disabled = true;
 
         // 로그인 시도
         const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
@@ -322,8 +341,13 @@
         if (error) {
             // 계정이 없으면 회원가입 시도
             const { error: signUpErr } = await _supabase.auth.signUp({ email, password });
-            if(signUpErr) alert(signUpErr.message); 
-            else alert("가입 완료! 자동으로 로그인됩니다.");
+            if(signUpErr) {
+                alert(signUpErr.message);
+                btn.innerText = "ENTER THE CLUB";
+                btn.disabled = false;
+            } else {
+                alert("가입 완료! 자동으로 로그인됩니다.");
+            }
         }
     }
 
