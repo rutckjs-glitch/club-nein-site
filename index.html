@@ -149,6 +149,16 @@
         .price-info { background: #222; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px dashed #444; }
         .price-row { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px; }
         .total-price { color: var(--neon); font-weight: bold; font-size: 1.1rem; border-top: 1px solid #333; padding-top: 5px; margin-top: 5px; }
+
+        /* 추가: 상점(SHOP) 스타일 */
+        .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+        .shop-item { background: #1a1a1a; border: 1px solid #333; border-radius: 20px; padding: 15px; text-align: center; transition: 0.3s; }
+        .shop-item:hover { border-color: var(--neon); transform: scale(1.02); }
+        .shop-img { font-size: 3rem; margin-bottom: 10px; }
+        .shop-name { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #eee; }
+        .shop-price { color: var(--neon); font-weight: bold; font-size: 0.85rem; margin-bottom: 12px; }
+        .shop-buy-btn { background: #333; color: #fff; border: 1px solid #444; padding: 8px; width: 100%; border-radius: 10px; font-size: 0.75rem; cursor: pointer; font-weight: bold; }
+        .shop-buy-btn:hover { background: var(--neon); color: #000; border-color: var(--neon); }
     </style>
 </head>
 <body>
@@ -177,6 +187,7 @@
 
     <div class="nav">
         <button id="btn-feed" class="nav-btn active" onclick="switchTab('feed')">FEED</button>
+        <button id="btn-shop" class="nav-btn" onclick="switchTab('shop')">SHOP</button>
         <button id="btn-match" class="nav-btn" onclick="switchTab('match')">GLOBAL</button>
         <button id="btn-auth" class="nav-btn" onclick="switchTab('auth')">LOGIN</button>
         <button id="btn-order" class="nav-btn" onclick="switchTab('order')">ORDER</button>
@@ -187,11 +198,41 @@
     </div>
 
     <div class="container">
+        <div id="section-shop" class="section">
+            <h1>CLUB SHOP</h1>
+            <p style="text-align:center; font-size:0.8rem; color:#888; margin-bottom:20px;">티켓과 프리미엄 바틀을 구매하세요.</p>
+            <div class="shop-grid">
+                <div class="shop-item">
+                    <div class="shop-img">🎫</div>
+                    <div class="shop-name">일반 입장권</div>
+                    <div class="shop-price">20,000 KRW</div>
+                    <button class="shop-buy-btn" onclick="buyShopItem('일반 입장권', 20000)">구매하기</button>
+                </div>
+                <div class="shop-item">
+                    <div class="shop-img">🍾</div>
+                    <div class="shop-name">Champagne</div>
+                    <div class="shop-price">100,000 KRW</div>
+                    <button class="shop-buy-btn" onclick="buyShopItem('Champagne', 100000)">구매하기</button>
+                </div>
+                <div class="shop-item">
+                    <div class="shop-img">🥃</div>
+                    <div class="shop-name">Jameson Whisky</div>
+                    <div class="shop-price">150,000 KRW</div>
+                    <button class="shop-buy-btn" onclick="buyShopItem('Jameson Whisky', 150000)">구매하기</button>
+                </div>
+                <div class="shop-item">
+                    <div class="shop-img">🍹</div>
+                    <div class="shop-name">Grey Goose</div>
+                    <div class="shop-price">200,000 KRW</div>
+                    <button class="shop-buy-btn" onclick="buyShopItem('Grey Goose', 200000)">구매하기</button>
+                </div>
+            </div>
+        </div>
+
         <div id="section-match" class="section">
             <h1>FIND FRIENDS</h1>
             <p style="text-align:center; font-size:0.8rem; color:#888; margin-bottom:20px;">함께 파티를 즐길 친구를 팔로우하고<br><b style="color:#ffd700;">100 캐시</b>를 적립하세요!</p>
-            <div id="matchList" class="match-container">
-                </div>
+            <div id="matchList" class="match-container"></div>
             <button class="btn btn-alt" style="margin-top:20px;" onclick="renderGlobalFriends()">새로고침 / REFRESH</button>
         </div>
 
@@ -219,7 +260,7 @@
                 <div class="price-info">
                     <div class="price-row">
                         <span>티켓 가격 (Ticket Price)</span>
-                        <span id="basePriceDisplay">15,000원</span>
+                        <span id="basePriceDisplay">20,000원</span>
                     </div>
                     <div class="price-row" style="color:#ffd700;">
                         <span>보유 캐시 (My Cash)</span>
@@ -227,7 +268,7 @@
                     </div>
                     <div class="price-row total-price">
                         <span>최종 결제 금액</span>
-                        <span id="finalPriceDisplay">15,000원</span>
+                        <span id="finalPriceDisplay">20,000원</span>
                     </div>
                 </div>
 
@@ -337,8 +378,6 @@
     let authMode = 'login';
     let currentUser = null;
     let myWatchingTicketId = localStorage.getItem('watchingTicketId') || null;
-    
-    // 추가: 캐시 로컬 저장소 연동
     let userCash = parseInt(localStorage.getItem('clubNeinCash') || '0');
 
     document.addEventListener('DOMContentLoaded', async () => { 
@@ -378,7 +417,7 @@
             renderCalendar(user.id, 'mainCalendarView'); 
             renderCalendar(user.id, 'pcMyCalendar');      
             renderAttendees(); 
-            calculatePrice(); // 가격 초기화
+            calculatePrice();
 
             if(user.email === 'rutckjs@gmail.com') {
                 document.getElementById('btn-admin').style.display = 'block';
@@ -396,7 +435,6 @@
         }
     }
 
-    // 추가: 캐시 UI 업데이트
     function updateCashUI() {
         document.getElementById('myCashHeader').innerText = `🪙 ${userCash.toLocaleString()}`;
         if(document.getElementById('stat-cash')) document.getElementById('stat-cash').innerText = userCash.toLocaleString();
@@ -404,10 +442,9 @@
         calculatePrice();
     }
 
-    // 추가: 티켓 가격 계산 (랜덤 가격 1만~2만 가정)
     function calculatePrice() {
         const qty = parseInt(document.getElementById('uQty')?.value || 1);
-        const basePrice = 15000; // 기본가 1.5만 원 고정
+        const basePrice = 20000; // 요청에 따라 2만원으로 설정
         const totalBase = basePrice * qty;
         const finalPrice = Math.max(0, totalBase - userCash);
 
@@ -415,7 +452,27 @@
         if(document.getElementById('finalPriceDisplay')) document.getElementById('finalPriceDisplay').innerText = `${finalPrice.toLocaleString()}원`;
     }
 
-    // 수정: 글로벌 친구 추가 시 캐시 지급
+    // 추가: 상점 구매 로직
+    function buyShopItem(itemName, price) {
+        if(!currentUser) return alert("로그인 후 구매 가능합니다.");
+        const finalPrice = Math.max(0, price - userCash);
+        
+        if(confirm(`[${itemName}]을(를) 구매하시겠습니까?\n최종 결제 금액: ${finalPrice.toLocaleString()} KRW (캐시 자동 사용)`)) {
+            // 캐시 차감 로직
+            const usedCash = Math.min(userCash, price);
+            userCash -= usedCash;
+            localStorage.setItem('clubNeinCash', userCash);
+            updateCashUI();
+            
+            addNotification("🛒 구매 완료", `${itemName} 구매가 완료되었습니다. 최종 결제액: ${finalPrice.toLocaleString()}원`);
+            alert(`${itemName} 구매 완료!`);
+            
+            if(itemName === '일반 입장권') {
+                switchTab('order');
+            }
+        }
+    }
+
     function renderGlobalFriends() {
         const list = document.getElementById('matchList');
         const users = [
@@ -425,7 +482,6 @@
             { id: 4, name: "LUCAS", country: "🇧🇷 Brazil", bio: "Energy only", interests: ["Bass", "Techno"], icon: "🤵" },
             { id: 5, name: "ELENA", country: "🇷🇺 Russia", bio: "Dance all night", interests: ["Trance", "Techno"], icon: "💃" }
         ];
-        
         list.innerHTML = "";
         const shuffled = users.sort(() => 0.5 - Math.random());
         shuffled.forEach(u => {
@@ -441,30 +497,25 @@
                     </div>
                     <button class="match-btn" id="followBtn-${u.id}" onclick="followUser('${u.name}', ${u.id})">❤️</button>
                     <div class="online-dot"></div>
-                </div>
-            `;
+                </div>`;
         });
     }
 
-    // 추가: 팔로우 로직 및 캐시 적립
     function followUser(name, id) {
         if(!currentUser) return alert("로그인 후 친구를 추가할 수 있습니다.");
         const btn = document.getElementById(`followBtn-${id}`);
         if(btn.innerText === "✅") return alert("이미 추가된 친구입니다.");
-        
         userCash += 100;
         localStorage.setItem('clubNeinCash', userCash);
         updateCashUI();
-        
         btn.innerText = "✅";
         btn.style.background = "#444";
-        
         addNotification("🪙 캐시 적립", `${name}님을 팔로우하여 100캐시가 적립되었습니다!`);
         alert(`${name}님을 팔로우했습니다! (+100 캐시 적립)`);
     }
 
     async function updateMyStats(userId) {
-        const { data, error } = await _supabase.from('registrations').select('status').eq('user_id', userId);
+        const { data } = await _supabase.from('registrations').select('status').eq('user_id', userId);
         if(data) {
             document.getElementById('stat-total').innerText = data.length;
             document.getElementById('stat-approved').innerText = data.filter(d => d.status === 'approved').length;
@@ -560,10 +611,9 @@
         const qty = parseInt(document.getElementById('uQty').value);
         if (!pId || !name || !email) return alert("정보를 모두 입력하세요.");
 
-        const finalPrice = Math.max(0, (15000 * qty) - userCash);
+        const finalPrice = Math.max(0, (20000 * qty) - userCash);
         if(confirm(`최종 결제 금액 ${finalPrice.toLocaleString()}원에 예매하시겠습니까? (캐시 전액 사용)`)) {
-            // 결제 성공 시 캐시 차감
-            userCash = Math.max(0, userCash - (15000 * qty));
+            userCash = Math.max(0, userCash - (20000 * qty));
             localStorage.setItem('clubNeinCash', userCash);
             updateCashUI();
 
@@ -639,14 +689,11 @@
     function switchTab(tab) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        
         const targetSection = document.getElementById('section-' + tab);
         if(targetSection) targetSection.classList.add('active');
-        
         const btnId = 'btn-' + tab; 
         const targetBtn = document.getElementById(btnId);
         if(targetBtn) targetBtn.classList.add('active');
-        
         if(tab === 'admin') loadAdminList();
     }
 
