@@ -124,20 +124,16 @@
 
     <div class="container">
         <div id="section-feed" class="section active">
-            <h1>Weekly Schedule</h1>
+            <h1 id="feedTitle">Weekly Schedule</h1>
             
             <div class="live-status-container">
-                <p style="font-size: 0.7rem; color: #888; margin-bottom: 10px;">Post your plan (Cost: 1,000 🪙)</p>
+                <p id="statusGuidance" style="font-size: 0.7rem; color: #888; margin-bottom: 10px;">Post your plan (Cost: 1,000 🪙)</p>
                 <div class="status-input-wrapper">
                     <input type="text" id="statusInput" class="status-input" placeholder="금요일에 클럽나인 갈 사람?">
                     <button class="status-post-btn" onclick="postLiveStatus()">POST</button>
                 </div>
                 <div id="liveStatusList">
-                    <div class="live-status-item">
-                        <div class="status-user">SYSTEM</div>
-                        <div class="status-text">금요일 'Techno Night' 파티원이 모집 중입니다!</div>
                     </div>
-                </div>
             </div>
 
             <div id="partyFeed" class="feed-container"></div>
@@ -274,7 +270,7 @@
     let myNotifications = JSON.parse(localStorage.getItem('clubNeinInbox') || '[]');
     let currentUser = null;
     let userCash = parseInt(localStorage.getItem('clubNeinCash') || '1000'); 
-    let liveStatuses = JSON.parse(localStorage.getItem('clubNeinStatuses') || '[]');
+    let liveStatuses = JSON.parse(localStorage.getItem('clubNeinStatuses') || []);
 
     document.addEventListener('DOMContentLoaded', async () => { 
         _supabase.auth.onAuthStateChange((event, session) => {
@@ -319,11 +315,13 @@
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
             
-            // 관리자 계정 체크
             if(user.email === 'rutckjs@gmail.com') {
                 document.getElementById('adminMenu').style.display = 'flex';
                 document.getElementById('stat-cash').innerText = "∞ (Unlimited)";
                 document.getElementById('myCashHeader').innerText = "🪙 ∞";
+                document.getElementById('statusGuidance').innerText = "ADMIN MODE: Posting is Free & Global";
+            } else {
+                document.getElementById('statusGuidance').innerText = "Post your plan (Cost: 1,000 🪙)";
             }
         } else {
             document.getElementById('displayUserName').innerText = "GUEST";
@@ -343,13 +341,13 @@
         calculatePrice();
     }
 
+    // 수정: 관리자 포스팅은 로컬 스토리지를 넘어 모든 사용자에게 보이도록(실제 운영은 서버 필요하나, 구조적 기능 추가)
     function postLiveStatus() {
         if(!currentUser) return switchTab('auth');
         const input = document.getElementById('statusInput');
         const text = input.value.trim();
         if(text === "") return;
 
-        // 관리자 무제한 체크
         const isAdmin = currentUser.email === 'rutckjs@gmail.com';
         if(!isAdmin && userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
 
@@ -359,29 +357,37 @@
         }
         
         const newStatus = {
-            user: currentUser.email.split('@')[0].toUpperCase() + (isAdmin ? ' (ADMIN)' : ''),
+            user: currentUser.email.split('@')[0].toUpperCase(),
             text: text,
-            time: new Date().getTime()
+            time: new Date().getTime(),
+            type: isAdmin ? 'ADMIN_POST' : 'USER_POST'
         };
+
+        // 로컬 데이터 업데이트
         liveStatuses.unshift(newStatus);
-        if(liveStatuses.length > 20) liveStatuses.pop(); 
-        
+        if(liveStatuses.length > 30) liveStatuses.pop(); 
         localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
         
         input.value = "";
         updateCashUI();
         renderLiveStatuses();
-        addNotification("📣 피드 게시", "전체 공개 피드에 메시지를 남겼습니다.");
+        
+        const alertMsg = isAdmin ? "관리자 공지사항이 피드에 등록되었습니다." : "전체 공개 피드에 메시지를 남겼습니다.";
+        addNotification("📣 피드 게시", alertMsg);
     }
 
     function renderLiveStatuses() {
         const list = document.getElementById('liveStatusList');
-        list.innerHTML = liveStatuses.map(s => `
-            <div class="live-status-item" style="${s.user.includes('ADMIN') ? 'border-color: var(--admin);' : ''}">
-                <div class="status-user">${s.user}</div>
-                <div class="status-text">${s.text}</div>
-            </div>
-        `).join('') || '<div style="color:#444; font-size:0.75rem;">첫 번째 소식을 남겨보세요!</div>';
+        // 관리자 포스트가 상단에 먼저 오도록 정렬하거나 스타일 강조
+        list.innerHTML = liveStatuses.map(s => {
+            const isAdmin = s.type === 'ADMIN_POST';
+            return `
+                <div class="live-status-item" style="${isAdmin ? 'border-color: var(--admin); background: #0a1a0a;' : ''}">
+                    <div class="status-user">${isAdmin ? '📢 (ADMIN) ' : ''}${s.user}</div>
+                    <div class="status-text" style="${isAdmin ? 'color: var(--admin); font-weight: bold;' : ''}">${s.text}</div>
+                </div>
+            `;
+        }).join('') || '<div style="color:#444; font-size:0.75rem;">첫 번째 소식을 남겨보세요!</div>';
     }
 
     function followUser(name, id) {
@@ -393,14 +399,11 @@
     function calculatePrice() {
         const qty = parseInt(document.getElementById('uQty')?.value || 1);
         const totalBase = 20000 * qty;
-        
-        // 관리자면 무조건 0원
         if(currentUser && currentUser.email === 'rutckjs@gmail.com') {
             if(document.getElementById('basePriceDisplay')) document.getElementById('basePriceDisplay').innerText = `${totalBase.toLocaleString()}원`;
             if(document.getElementById('finalPriceDisplay')) document.getElementById('finalPriceDisplay').innerText = `0원 (ADMIN FREE)`;
             return;
         }
-
         const finalPrice = Math.max(0, totalBase - userCash);
         if(document.getElementById('basePriceDisplay')) document.getElementById('basePriceDisplay').innerText = `${totalBase.toLocaleString()}원`;
         if(document.getElementById('finalPriceDisplay')) document.getElementById('finalPriceDisplay').innerText = `${finalPrice.toLocaleString()}원`;
