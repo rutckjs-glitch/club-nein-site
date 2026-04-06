@@ -105,6 +105,25 @@
         .admin-post-form h3 { color: var(--admin); margin-top: 0; font-size: 1rem; }
         .media-preview { width: 100%; height: 200px; background: #000; border: 1px solid #333; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .media-preview img, .media-preview video { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        /* 관리자 전용 더하기 버튼 */
+        .admin-fab {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--admin);
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: black;
+            box-shadow: 0 4px 15px rgba(0,255,65,0.4);
+            cursor: pointer;
+            z-index: 4000;
+        }
     </style>
 </head>
 <body>
@@ -128,10 +147,11 @@
         <div id="notiList" style="max-height: 300px; overflow-y: auto;"></div>
     </div>
 
+    <div id="adminAddBtn" class="admin-fab" onclick="switchTab('admin')">+</div>
+
     <div class="container">
         <div id="section-feed" class="section active">
             <h1 id="feedTitle">Weekly Schedule</h1>
-            
             <div class="live-status-container">
                 <p id="statusGuidance" style="font-size: 0.7rem; color: #888; margin-bottom: 10px;">Post your plan (Cost: 1,000 🪙)</p>
                 <div class="status-input-wrapper">
@@ -140,13 +160,12 @@
                 </div>
                 <div id="liveStatusList"></div>
             </div>
-
             <div id="partyFeed" class="feed-container"></div>
         </div>
 
         <div id="section-admin" class="section">
             <h1>Admin Panel</h1>
-            <div id="adminPostArea" class="admin-post-form">
+            <div id="adminPostArea" class="admin-post-form" style="display: block;">
                 <h3>CREATE MEDIA POST</h3>
                 <input type="text" id="postMediaUrl" placeholder="이미지 또는 비디오 URL" oninput="updateMediaPreview()">
                 <select id="postMediaType" onchange="updateMediaPreview()">
@@ -197,7 +216,6 @@
                     <div style="color:#ffd700; font-size:0.8rem; font-weight:bold;">🪙 <span id="stat-cash">0</span></div>
                 </div>
             </div>
-
             <div class="mypage-menu">
                 <div class="menu-item" onclick="switchTab('order')">
                     <span>🎟️ 티켓 예매하기 (Order)</span>
@@ -255,11 +273,6 @@
             </div>
             <p id="pendingMsg" style="text-align:center; color:#888;">신청한 티켓이 없습니다.</p>
         </div>
-
-        <div id="section-calendar" class="section">
-            <h1>Calendar</h1>
-            <div class="calendar-grid" id="mainCalendarView"></div>
-        </div>
     </div>
 
     <nav class="bottom-nav">
@@ -316,9 +329,6 @@
         navBtns.forEach(btn => {
             if(btn.getAttribute('onclick')?.includes(`'${tab}'`)) btn.classList.add('active');
         });
-        if(tab === 'admin') loadAdminList();
-        if(tab === 'check') findTicket();
-        if(tab === 'calendar' && currentUser) renderCalendar(currentUser.id, 'mainCalendarView');
         window.scrollTo(0, 0);
     }
 
@@ -337,29 +347,28 @@
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
             
-            // 관리자 권한 확인 및 UI 변경
             if(isAdmin) {
                 document.getElementById('adminMenu').style.display = 'flex';
-                document.getElementById('adminPostArea').style.display = 'block';
+                document.getElementById('adminAddBtn').style.display = 'flex';
                 document.getElementById('statusGuidance').innerText = "ADMIN MODE: Free Post & Unlimited Coins";
                 document.getElementById('myCashHeader').innerText = "🪙 ∞";
                 document.getElementById('stat-cash').innerText = "∞ (Admin)";
             } else {
                 document.getElementById('adminMenu').style.display = 'none';
-                document.getElementById('adminPostArea').style.display = 'none';
+                document.getElementById('adminAddBtn').style.display = 'none';
                 document.getElementById('statusGuidance').innerText = "Post your plan (Cost: 1,000 🪙)";
             }
         } else {
             document.getElementById('displayUserName').innerText = "GUEST";
             document.getElementById('myCashHeader').style.display = 'none';
+            document.getElementById('adminAddBtn').style.display = 'none';
         }
         updateCashUI();
     }
 
     function updateCashUI() {
         const isAdmin = currentUser && currentUser.email === 'rutckjs@gmail.com';
-        if(isAdmin) return; // 관리자는 위에서 처리
-        
+        if(isAdmin) return;
         document.getElementById('myCashHeader').innerText = `🪙 ${userCash.toLocaleString()}`;
         document.getElementById('stat-cash').innerText = userCash.toLocaleString();
         if(document.getElementById('usableCashDisplay')) document.getElementById('usableCashDisplay').innerText = `-${userCash.toLocaleString()}원`;
@@ -371,26 +380,21 @@
         const input = document.getElementById('statusInput');
         const text = input.value.trim();
         if(text === "") return;
-
         const isAdmin = currentUser.email === 'rutckjs@gmail.com';
         if(!isAdmin && userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
-
         if(!isAdmin) {
             userCash -= 1000;
             localStorage.setItem('clubNeinCash', userCash);
         }
-        
         const newStatus = {
             user: currentUser.email.split('@')[0].toUpperCase(),
             text: text,
             time: new Date().getTime(),
             type: isAdmin ? 'ADMIN_POST' : 'USER_POST'
         };
-
         liveStatuses.unshift(newStatus);
         if(liveStatuses.length > 30) liveStatuses.pop(); 
         localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
-        
         input.value = "";
         updateCashUI();
         renderLiveStatuses();
@@ -409,13 +413,11 @@
         }).join('') || '<div style="color:#444; font-size:0.75rem;">첫 번째 소식을 남겨보세요!</div>';
     }
 
-    // 관리자 미디어 미리보기
     function updateMediaPreview() {
         const url = document.getElementById('postMediaUrl').value;
         const type = document.getElementById('postMediaType').value;
         const preview = document.getElementById('mediaPreview');
         if(!url) { preview.innerHTML = '<span style="color:#444;">미리보기 없음</span>'; return; }
-        
         if(type === 'image') {
             preview.innerHTML = `<img src="${url}" onerror="this.src='https://via.placeholder.com/400x400?text=Invalid+Image'">`;
         } else {
@@ -423,17 +425,13 @@
         }
     }
 
-    // 관리자 인스타 스타일 포스팅 생성
     function createAdminPost() {
         if(!(currentUser && currentUser.email === 'rutckjs@gmail.com')) return alert("관리자만 가능합니다.");
-        
         const mediaUrl = document.getElementById('postMediaUrl').value;
         const mediaType = document.getElementById('postMediaType').value;
         const title = document.getElementById('postTitle').value;
         const content = document.getElementById('postContent').value;
-
         if(!mediaUrl || !title) return alert("미디어 URL과 제목은 필수입니다.");
-
         const newPost = {
             id: Date.now(),
             mediaUrl,
@@ -442,16 +440,12 @@
             content,
             date: new Date().toLocaleDateString()
         };
-
         adminPosts.unshift(newPost);
         localStorage.setItem('clubNeinAdminPosts', JSON.stringify(adminPosts));
-        
-        // 필드 초기화
         document.getElementById('postMediaUrl').value = "";
         document.getElementById('postTitle').value = "";
         document.getElementById('postContent').value = "";
         updateMediaPreview();
-
         alert("게시물이 피드에 추가되었습니다!");
         fetchParties();
         switchTab('feed');
@@ -463,13 +457,10 @@
         const sel = document.getElementById('partySelect');
         sel.innerHTML = '<option value="">Select Event</option>';
         feed.innerHTML = "";
-
-        // 관리자 포스트 먼저 출력
         adminPosts.forEach(p => {
             const mediaHtml = p.mediaType === 'image' 
                 ? `<img src="${p.mediaUrl}" style="width:100%;">` 
                 : `<video src="${p.mediaUrl}" style="width:100%;" autoplay muted loop></video>`;
-
             feed.innerHTML += `
                 <div class="feed-item" style="border: 1px solid #333;">
                     <div style="padding:10px; font-size:0.8rem; font-weight:bold; display:flex; align-items:center; gap:8px;">
@@ -486,7 +477,6 @@
                     </div>
                 </div>`;
         });
-
         if (data) {
             data.forEach(p => {
                 sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
@@ -533,9 +523,7 @@
         const qty = parseInt(document.getElementById('uQty')?.value || 1);
         const totalBase = 20000 * qty;
         const isAdmin = currentUser && currentUser.email === 'rutckjs@gmail.com';
-        
         const finalPrice = isAdmin ? 0 : Math.max(0, totalBase - userCash);
-        
         if(document.getElementById('basePriceDisplay')) document.getElementById('basePriceDisplay').innerText = `${totalBase.toLocaleString()}원`;
         if(document.getElementById('finalPriceDisplay')) {
             document.getElementById('finalPriceDisplay').innerText = isAdmin ? "0원 (Admin Free)" : `${finalPrice.toLocaleString()}원`;
