@@ -20,17 +20,18 @@
 
     <style>
         :root { --neon: #ff0000cc; --bg: #050505; --card: #121212; --admin: #00ff41; }
-        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { background: var(--card); border: 1px solid #333; width: 100%; max-width: 450px; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { background: var(--bg); color: white; font-family: 'Pretendard', sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: var(--card); border: 1px solid #333; width: 100%; max-width: 450px; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
         .nav { display: flex; gap: 8px; margin-bottom: 20px; width: 100%; max-width: 450px; }
-        .nav-btn { flex: 1; padding: 12px; background: #222; border: 1px solid #444; color: #888; border-radius: 12px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .nav-btn { flex: 1; padding: 12px; background: #222; border: 1px solid #444; color: #888; border-radius: 12px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.3s; }
         .nav-btn.active { background: var(--neon); color: white; border-color: var(--neon); }
         .nav-btn.admin-mode.active { background: var(--admin); color: black; border-color: var(--admin); }
         .section { display: none; }
         .section.active { display: block; }
         h1 { color: var(--neon); text-align: center; letter-spacing: 4px; margin-bottom: 20px; font-size: 1.8rem; }
         input, select { background: #1a1a1a; border: 1px solid #333; color: white; padding: 15px; width: 100%; border-radius: 12px; margin-bottom: 12px; box-sizing: border-box; font-size: 1rem; }
-        .btn { background: var(--neon); color: #000; border: none; padding: 16px; width: 100%; border-radius: 12px; font-weight: 800; cursor: pointer; }
+        .btn { background: var(--neon); color: #000; border: none; padding: 16px; width: 100%; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
         .ticket-res { background: white; color: black; border-radius: 20px; padding: 25px; text-align: center; margin-top: 20px; display: none; }
         .qr-placeholder { padding: 30px; color: #ff3e3e; font-weight: bold; border: 2px dashed #ff3e3e; margin: 15px 0; border-radius: 10px; background: #fff5f5; }
         .admin-item { border-bottom: 1px solid #333; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
@@ -52,7 +53,7 @@
         <div id="section-order" class="section active">
             <h1>CLUB NEIN</h1>
             <p style="font-size: 0.7rem; color: #888; text-align: center; margin-bottom: 10px;">알림을 허용해야 승인 시 푸시를 받을 수 있습니다.</p>
-            <select id="partySelect"><option value="">Loading Parties...</option></select>
+            <select id="partySelect"><option value="">파티 목록을 불러오는 중...</option></select>
             <input type="text" id="uName" placeholder="성함 / Name">
             <input type="email" id="uEmail" placeholder="이메일 / Email">
             <input type="number" id="uQty" value="1" min="1" placeholder="수량">
@@ -80,21 +81,17 @@
     </div>
 
 <script>
-    // --- 설정 정보 반영됨 ---
     const SUPABASE_URL = 'https://yyvozhlkohtclyhyigbs.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5dm96aGxrb2h0Y2x5aHlpZ2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDA1ODUsImV4cCI6MjA5MDg3NjU4NX0.2ZE1uL4CRmrCjlOTgCl0qONZE15MhqetzUqysIIq7H0';
-    
-    // OneSignal 정보
-    const ONESIGNAL_APP_ID = "8208032a-d107-488d-8bfa-ada3b3d9d3be"; 
-    const ONESIGNAL_REST_KEY = "os_v2_app_qieagkwra5ei3c72vwr3hwotxyhseiy6y4zesbenbboykayprrfajdqcnrvikrql2gjrz53kbmbinz2b7kf2rnqn64wakidecd2znla"; 
     
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let partyList = [];
 
-    window.onload = async () => {
+    // 초기화: 페이지 로드 후 실행
+    document.addEventListener('DOMContentLoaded', async () => {
         await fetchParties();
-        loadAdminList();
-    };
+        await loadAdminList();
+    });
 
     function switchTab(tab) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -103,30 +100,43 @@
         event.currentTarget.classList.add('active');
     }
 
+    // 1. 파티 목록 가져오기
     async function fetchParties() {
-        const { data } = await _supabase.from('events').select('*');
-        if (data) {
-            partyList = data;
-            const sel = document.getElementById('partySelect');
-            sel.innerHTML = '<option value="">선택하세요 / Select Party</option>';
-            data.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.title} (${p.price}원)</option>`);
+        const sel = document.getElementById('partySelect');
+        try {
+            const { data, error } = await _supabase.from('events').select('*');
+            
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                partyList = data;
+                sel.innerHTML = '<option value="">선택하세요 / Select Party</option>';
+                data.forEach(p => {
+                    const priceStr = p.price ? p.price.toLocaleString() : '0';
+                    sel.innerHTML += `<option value="${p.id}">${p.title} (${priceStr}원)</option>`;
+                });
+            } else {
+                sel.innerHTML = '<option value="">진행 중인 파티가 없습니다.</option>';
+            }
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            sel.innerHTML = '<option value="">목록 로드 실패 (RLS 설정을 확인하세요)</option>';
         }
     }
 
-    // 티켓 신청
+    // 2. 티켓 신청
     async function submitOrder() {
         const pId = document.getElementById('partySelect').value;
         const name = document.getElementById('uName').value;
         const email = document.getElementById('uEmail').value;
         const qty = parseInt(document.getElementById('uQty').value);
         
-        if (!pId || !name || !email) return alert("정보를 모두 입력해주세요.");
+        if (!pId || !name || !email) return alert("모든 정보를 입력해주세요.");
 
         let pushId = null;
         try {
-            // OneSignal v16 문법으로 Push ID 수집
             pushId = await OneSignal.User.PushSubscription.id;
-        } catch(e) { console.log("Push ID 수집 안됨"); }
+        } catch(e) { console.warn("Push ID 미수집"); }
 
         const p = partyList.find(x => x.id == pId);
         const qrid = "NEIN-" + Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -136,5 +146,85 @@
             qrid: qrid, push_id: pushId, status: 'pending'
         }]);
 
+        if (error) {
+            alert("등록 실패: " + error.message);
+        } else {
+            alert(`신청 완료!\nID: ${qrid}\n입금 후 'MY TICKET'에서 확인하세요.`);
+            document.getElementById('uName').value = "";
+            document.getElementById('uEmail').value = "";
+            switchTab('check');
+        }
+    }
+
+    // 3. 내 티켓 조회
+    async function findTicket() {
+        const email = document.getElementById('checkEmail').value;
+        const qrid = document.getElementById('checkQRID').value;
+        const resDiv = document.getElementById('ticketResult');
+        const qrArea = document.getElementById('qrArea');
+
+        if (!email || !qrid) return alert("조회 정보를 입력하세요.");
+
+        const { data, error } = await _supabase.from('registrations')
+            .select('*, events(title)')
+            .eq('email', email)
+            .eq('qrid', qrid)
+            .single();
+
+        if (data) {
+            resDiv.style.display = 'block';
+            qrArea.innerHTML = "";
+            document.getElementById('resInfo').innerHTML = `
+                <b>PARTY:</b> ${data.events.title}<br>
+                <b>NAME:</b> ${data.name}<br>
+                <b>QTY:</b> ${data.qty}매<br>
+                <b>STATUS:</b> ${data.status.toUpperCase()}
+            `;
+
+            if (data.status === 'approved') {
+                document.getElementById('pendingMsg').style.display = 'none';
+                new QRCode(qrArea, { text: data.qrid, width: 150, height: 150 });
+            } else {
+                document.getElementById('pendingMsg').style.display = 'block';
+            }
+        } else {
+            alert("일치하는 티켓이 없습니다.");
+            resDiv.style.display = 'none';
+        }
+    }
+
+    // 4. 관리자 명단 로드
+    async function loadAdminList() {
+        const listDiv = document.getElementById('adminList');
+        const { data, error } = await _supabase.from('registrations').select('*, events(title)').order('created_at', {ascending: false});
+
+        if (data) {
+            listDiv.innerHTML = "";
+            data.forEach(item => {
+                const statusClass = item.status === 'approved' ? 'approved' : 'pending';
+                listDiv.innerHTML += `
+                    <div class="admin-item">
+                        <div style="font-size:0.8rem;">
+                            <b>${item.name}</b> (${item.qty}매)<br>
+                            <span style="color:#888">${item.events.title} / ${item.qrid}</span>
+                        </div>
+                        <div>
+                            ${item.status === 'pending' ? `<button class="approve-btn" onclick="approveTicket('${item.id}')">승인</button>` : `<span class="status-badge approved">완료</span>`}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+    }
+
+    // 5. 티켓 승인 처리
+    async function approveTicket(id) {
+        const { error } = await _supabase.from('registrations').update({ status: 'approved' }).eq('id', id);
         if (!error) {
-            alert(`신청 완료!\nID:
+            alert("승인 완료!");
+            loadAdminList();
+        }
+    }
+</script>
+</body>
+</html>
