@@ -7,14 +7,6 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-    <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({ appId: "8208032a-d107-488d-8bfa-ada3b3d9d3be" });
-      });
-    </script>
 
     <style>
         :root { --neon: #ff0000cc; --bg: #050505; --card: #121212; --admin: #00ff41; }
@@ -71,7 +63,7 @@
         <div id="section-admin" class="section">
             <h2 style="text-align: center; color: var(--admin);">ADMIN PANEL</h2>
             <div id="adminList">명단 로딩 중...</div>
-            <button class="btn" style="background: #333; color: white; margin-top: 15px;" onclick="loadAdminList()">REFRESH</button>
+            <button class="btn" style="background: #333; color: white; margin-top: 15px;" onclick="loadAdminList()">새로고침 / REFRESH</button>
         </div>
     </div>
 
@@ -79,7 +71,6 @@
     const SUPABASE_URL = 'https://yyvozhlkohtclyhyigbs.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5dm96aGxrb2h0Y2x5aHlpZ2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDA1ODUsImV4cCI6MjA5MDg3NjU4NX0.2ZE1uL4CRmrCjlOTgCl0qONZE15MhqetzUqysIIq7H0';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    let partyList = [];
 
     document.addEventListener('DOMContentLoaded', () => {
         fetchParties();
@@ -91,12 +82,12 @@
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('section-' + tab).classList.add('active');
         event.currentTarget.classList.add('active');
+        if(tab === 'admin') loadAdminList(); // 어드민 탭 클릭 시 명단 갱신
     }
 
     async function fetchParties() {
         const { data } = await _supabase.from('events').select('*');
         if (data) {
-            partyList = data;
             const sel = document.getElementById('partySelect');
             sel.innerHTML = '<option value="">선택하세요 / Select Party</option>';
             data.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.title}</option>`);
@@ -116,42 +107,33 @@
         }]);
 
         if (!error) {
-            alert(`신청 완료!\nID: ${qrid}\n조회 탭에서 확인하세요.`);
+            alert(`신청 완료! ID: ${qrid}`);
             switchTab('check');
         } else {
-            alert("등록 실패: " + error.message);
+            alert("에러: " + error.message);
         }
     }
 
-    // ★★★ 핵심 수정: 조회 기능 최적화 ★★★
     async function findTicket() {
         const email = document.getElementById('checkEmail').value.trim();
         const qrid = document.getElementById('checkQRID').value.trim();
         const resDiv = document.getElementById('ticketResult');
         const qrArea = document.getElementById('qrArea');
 
-        if (!email || !qrid) return alert("이메일과 QR ID를 입력하세요.");
-
-        // 단순 조회를 위해 select('*')만 사용
+        // 캐시 방지를 위해 매번 새로 조회
         const { data, error } = await _supabase.from('registrations')
             .select('*')
             .eq('email', email)
             .eq('qrid', qrid)
-            .maybeSingle(); // 한 개만 가져옴
-
-        if (error) {
-            console.error(error);
-            return alert("조회 중 오류 발생");
-        }
+            .maybeSingle();
 
         if (data) {
             resDiv.style.display = 'block';
             qrArea.innerHTML = "";
             document.getElementById('resInfo').innerHTML = `
                 <b>NAME:</b> ${data.name}<br>
-                <b>QTY:</b> ${data.qty}매<br>
                 <b>QR ID:</b> ${data.qrid}<br>
-                <b>STATUS:</b> ${data.status.toUpperCase()}
+                <b>STATUS:</b> ${data.status === 'approved' ? '✅ 승인완료' : '⏳ 대기중'}
             `;
 
             if (data.status === 'approved') {
@@ -161,22 +143,26 @@
                 document.getElementById('pendingMsg').style.display = 'block';
             }
         } else {
-            alert("일치하는 티켓이 없습니다. 이메일과 ID를 다시 확인하세요.");
-            resDiv.style.display = 'none';
+            alert("티켓을 찾을 수 없습니다.");
         }
     }
 
     async function loadAdminList() {
-        const { data } = await _supabase.from('registrations').select('*').order('created_at', {ascending: false});
+        const { data, error } = await _supabase.from('registrations').select('*').order('created_at', {ascending: false});
+        const listDiv = document.getElementById('adminList');
         if (data) {
-            const listDiv = document.getElementById('adminList');
             listDiv.innerHTML = "";
             data.forEach(item => {
                 listDiv.innerHTML += `
                     <div class="admin-item">
-                        <div><b>${item.name}</b> (${item.qty}매)<br><small>${item.qrid}</small></div>
                         <div>
-                            ${item.status === 'pending' ? `<button class="approve-btn" onclick="approveTicket('${item.id}')">승인</button>` : `<span class="status-badge approved">완료</span>`}
+                            <b>${item.name}</b> (${item.qty}매)<br>
+                            <small style="color:#888;">${item.qrid}</small>
+                        </div>
+                        <div>
+                            ${item.status === 'pending' 
+                                ? `<button class="approve-btn" onclick="approveTicket('${item.id}')">승인하기</button>` 
+                                : `<span class="status-badge approved">승인됨</span>`}
                         </div>
                     </div>
                 `;
@@ -185,8 +171,18 @@
     }
 
     async function approveTicket(id) {
-        const { error } = await _supabase.from('registrations').update({ status: 'approved' }).eq('id', id);
-        if (!error) { alert("승인 완료"); loadAdminList(); }
+        // 1. DB 업데이트 수행
+        const { error } = await _supabase
+            .from('registrations')
+            .update({ status: 'approved' })
+            .eq('id', id);
+
+        if (error) {
+            alert("승인 처리 중 오류: " + error.message);
+        } else {
+            alert("성공적으로 승인되었습니다!");
+            loadAdminList(); // 관리자 명단 새로고침
+        }
     }
 </script>
 </body>
