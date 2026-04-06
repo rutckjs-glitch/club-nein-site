@@ -70,16 +70,51 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5dm96aGxrb2h0Y2x5aHlpZ2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDA1ODUsImV4cCI6MjA5MDg3NjU4NX0.2ZE1uL4CRmrCjlOTgCl0qONZE15MhqetzUqysIIq7H0';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    document.addEventListener('DOMContentLoaded', () => { fetchParties(); loadAdminList(); });
+    document.addEventListener('DOMContentLoaded', () => { 
+        fetchParties(); 
+        loadAdminList();
+        requestNotificationPermission(); // 알림 권한 요청
+        listenForApprovals(); // 실시간 감시 시작
+    });
 
-    // 에러 원인이었던 switchTab 함수 수정
+    // 1. 알림 권한 요청 함수
+    function requestNotificationPermission() {
+        if ("Notification" in window) {
+            Notification.requestPermission();
+        }
+    }
+
+    // 2. 실시간 승인 감시 함수 (Supabase Realtime)
+    function listenForApprovals() {
+        _supabase
+            .channel('registrations_changes')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations' }, (payload) => {
+                const updatedData = payload.new;
+                // 상태가 approved로 바뀌었을 때만 알림
+                if (updatedData.status === 'approved') {
+                    showPushNotification(updatedData.name, updatedData.qrid);
+                }
+            })
+            .subscribe();
+    }
+
+    // 3. 실제 알림창 띄우는 함수
+    function showPushNotification(name, qrid) {
+        if (Notification.permission === "granted") {
+            new Notification("🎟️ CLUB NEIN 티켓 승인 완료!", {
+                body: `${name}님, 티켓이 승인되었습니다. ID: ${qrid}를 확인하세요!`,
+                icon: "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3ab.png"
+            });
+        } else {
+            alert(`🎉 승인 알림: ${name}님의 티켓이 승인되었습니다!`);
+        }
+    }
+
     function switchTab(tab) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        
         document.getElementById('section-' + tab).classList.add('active');
         document.getElementById('btn-' + tab).classList.add('active');
-        
         if(tab === 'admin') loadAdminList();
     }
 
@@ -98,38 +133,27 @@
         const email = document.getElementById('uEmail').value;
         const qty = parseInt(document.getElementById('uQty').value);
         if (!pId || !name || !email) return alert("정보를 모두 입력하세요.");
-        
         const qrid = "NEIN-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         const { error } = await _supabase.from('registrations').insert([{ party_id: pId, name, email, qty, qrid, status: 'pending' }]);
-        
-        if (!error) { 
-            alert(`신청 완료! ID: ${qrid}`); 
-            switchTab('check'); // 여기서 에러가 났었는데 이제 고쳐졌습니다.
-        }
+        if (!error) { alert(`신청 완료! ID: ${qrid}`); switchTab('check'); }
     }
 
     async function findTicket() {
         const email = document.getElementById('checkEmail').value.trim();
         const qrid = document.getElementById('checkQRID').value.trim().toUpperCase();
         const qrArea = document.getElementById('qrArea');
-
-        const { data } = await _supabase.from('registrations').select('*').eq('email', email).eq('qrid', qrid).maybeSingle();
-
-        if (data) {
+        const { data } = await _supabase.from('registrations').select('*').eq('email', email).eq('qrid', qrid);
+        
+        if (data && data.length > 0) {
+            const ticket = data[0];
             document.getElementById('ticketResult').style.display = 'block';
             qrArea.innerHTML = ""; 
-            
-            const isApproved = data.status.trim().toLowerCase() === 'approved';
-            document.getElementById('resInfo').innerHTML = `<b>NAME:</b> ${data.name}<br><b>STATUS:</b> ${isApproved ? '✅ 승인완료' : '⏳ 대기중'}`;
-
+            const isApproved = ticket.status.toLowerCase() === 'approved';
+            document.getElementById('resInfo').innerHTML = `<b>NAME:</b> ${ticket.name}<br><b>STATUS:</b> ${isApproved ? '✅ 승인완료' : '⏳ 대기중'}`;
             if (isApproved) {
                 document.getElementById('pendingMsg').style.display = 'none';
-                setTimeout(() => {
-                    new QRCode(qrArea, { text: data.qrid, width: 160, height: 160 });
-                }, 50);
-            } else {
-                document.getElementById('pendingMsg').style.display = 'block';
-            }
+                setTimeout(() => { new QRCode(qrArea, { text: ticket.qrid, width: 160, height: 160 }); }, 100);
+            } else { document.getElementById('pendingMsg').style.display = 'block'; }
         } else { alert("정보가 일치하지 않습니다."); }
     }
 
@@ -139,7 +163,7 @@
         if (data) {
             listDiv.innerHTML = "";
             data.forEach(item => {
-                const isApproved = item.status.trim().toLowerCase() === 'approved';
+                const isApproved = item.status.toLowerCase() === 'approved';
                 listDiv.innerHTML += `
                     <div class="admin-item">
                         <div><b>${item.name}</b><br><small>${item.qrid}</small></div>
@@ -153,11 +177,9 @@
 
     async function approveTicket(id) {
         const container = document.getElementById(`btn-container-${id}`);
-        container.innerHTML = '...';
         const { error } = await _supabase.from('registrations').update({ status: 'approved' }).eq('id', id);
         if (!error) {
             container.innerHTML = '<span class="status-badge approved-tag">승인됨</span>';
-            setTimeout(() => alert("승인 성공!"), 10);
         }
     }
 </script>
