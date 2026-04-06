@@ -121,7 +121,7 @@
     let authMode = 'login';
     let currentUser = null;
     
-    // 알림을 받을 본인의 티켓 ID (조회 시 등록됨)
+    // 알림을 받을 본인의 티켓 ID (localStorage에서 로드)
     let myWatchingTicketId = localStorage.getItem('watchingTicketId') || null;
 
     document.addEventListener('DOMContentLoaded', async () => { 
@@ -232,20 +232,15 @@
         _supabase.channel('registrations_changes').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations' }, (payload) => {
             const updated = payload.new;
             if (updated.status === 'approved') {
-                // 관리자 이메일인 경우 전체 승인 소식을 알림함에 기록
+                // 관리자 알림
                 if(currentUser && currentUser.email === 'rutckjs@gmail.com') {
                     addNotification("🎟️ 새 티켓 승인", `${updated.name}님의 신청이 승인되었습니다.`);
                 }
                 
-                // ★ 신청자 본인인 경우 (조회했던 티켓 ID와 일치할 때)
+                // ★ 신청자 본인 알림 (감시 중인 qrid와 일치할 때 벨 숫자를 올림)
                 if (updated.qrid === myWatchingTicketId) {
                     showPushNotification(updated.name, updated.qrid);
                     addNotification("🎉 내 티켓 승인 완료!", "신청하신 티켓이 승인되었습니다. QR을 확인하세요!");
-                    
-                    // 현재 티켓 조회 탭을 보고 있다면 즉시 화면 갱신
-                    if(document.getElementById('section-check').classList.contains('active')) {
-                        findTicket();
-                    }
                 }
             }
         }).subscribe();
@@ -291,13 +286,10 @@
         
         if (!error) { 
             alert(`신청 완료! ID: ${qrid}`);
-            // 신청 즉시 해당 ID를 감시 대상으로 등록
+            // 신청 즉시 해당 ID를 감시 대상으로 등록 (벨 알림을 위해 중요)
             myWatchingTicketId = qrid;
             localStorage.setItem('watchingTicketId', qrid);
             switchTab('check'); 
-            
-            // 신청 시에도 알림 추가 가능 (선택사항)
-            addNotification("📝 신청 완료", `${qrid} 티켓 신청이 접수되었습니다.`);
         } else {
             alert("신청 중 오류가 발생했습니다: " + error.message);
         }
@@ -306,19 +298,13 @@
     async function findTicket() {
         const email = document.getElementById('checkEmail').value.trim();
         const qrid = document.getElementById('checkQRID').value.trim().toUpperCase();
-        
-        // 이메일이나 QR ID가 비어있을 때 (실시간 자동 갱신 시를 위해 처리)
-        if(!email && !qrid && myWatchingTicketId) {
-             // 감시 중인 ID가 있다면 해당 정보로 재조회 시도 로직 추가 가능
-        }
-
         const qrArea = document.getElementById('qrArea');
         const { data } = await _supabase.from('registrations').select('*').eq('email', email).eq('qrid', qrid);
         
         if (data && data.length > 0) {
             const ticket = data[0];
             
-            // ★ 조회 성공 시 해당 티켓을 감시 대상으로 등록
+            // 조회 성공 시에도 감시 대상으로 등록
             myWatchingTicketId = ticket.qrid;
             localStorage.setItem('watchingTicketId', ticket.qrid);
 
@@ -333,8 +319,7 @@
                 document.getElementById('pendingMsg').style.display = 'block'; 
             }
         } else {
-            // 수동 조회 시에만 에러 메시지 출력
-            if(email || qrid) alert("일치하는 정보가 없습니다.");
+            alert("일치하는 정보가 없습니다.");
         }
     }
 
