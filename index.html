@@ -11,7 +11,6 @@
         :root { --neon: #ff0000; --bg: #050505; --card: #121212; --admin: #00ff41; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0 20px 20px 20px; display: flex; flex-direction: column; align-items: center; }
         
-        /* 추가: 모든 페이지 고정 로고 헤더 */
         .fixed-logo-header { 
             position: sticky; 
             top: 0; 
@@ -36,7 +35,6 @@
 
         .container { background: var(--card); border: 1px solid #333; width: 100%; max-width: 450px; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; position: relative; }
         
-        /* 알림 및 인증 UI */
         .header-tools { width: 100%; max-width: 450px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
         .user-info { font-size: 0.75rem; color: #888; }
         .auth-btn { background: none; border: 1px solid #444; color: #ccc; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 0.7rem; }
@@ -65,7 +63,6 @@
         .qr-placeholder { padding: 30px; color: #ff3e3e; font-weight: bold; border: 2px dashed #ff3e3e; margin: 15px 0; border-radius: 10px; background: #fff5f5; }
         #qrArea { display: flex; justify-content: center; margin: 20px 0; min-height: 160px; }
 
-        /* 추가: 저장 버튼 스타일 */
         .btn-save { background: #000; color: #fff; margin-top: 15px; padding: 12px; font-size: 0.85rem; display: none; }
 
         .admin-item { border-bottom: 1px solid #333; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
@@ -73,7 +70,6 @@
         .approved-tag { background: #004411; color: #00ff41; border: 1px solid #00ff41; }
         .approve-btn { background: var(--admin); color: black; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
-        /* 마이페이지 전용 스타일 */
         .mypage-profile { text-align: center; margin-bottom: 30px; }
         .profile-img { width: 80px; height: 80px; background: linear-gradient(45deg, #333, var(--neon)); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 2px solid #555; }
         .mypage-stat { display: flex; justify-content: space-around; background: #1a1a1a; padding: 15px; border-radius: 15px; margin-bottom: 25px; border: 1px solid #333; }
@@ -86,7 +82,6 @@
         .menu-item span { font-size: 0.9rem; font-weight: bold; }
         .menu-icon { color: var(--neon); }
 
-        /* 달력 및 참석자 리스트 */
         .profile-bio { background: #1a1a1a; border: 1px dotted #444; padding: 15px; border-radius: 12px; font-size: 0.85rem; color: #bbb; margin-bottom: 20px; text-align: left; }
         .bio-edit-btn { font-size: 0.7rem; color: var(--neon); cursor: pointer; float: right; }
         
@@ -108,16 +103,6 @@
         .payment-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; box-sizing: border-box; }
         .pay-msg { font-size: 0.75rem; color: #fff; line-height: 1.5; margin-bottom: 10px; }
         .pay-btn { background: var(--neon); color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
-
-        /* PC 버전 최적화: 달력을 마이페이지 내부에서 항상 노출 (PC용) */
-        @media (min-width: 768px) {
-            #btn-calendar-nav { display: none !important; } /* PC에선 네비게이션 버튼 숨김 */
-            .calendar-pc-container { display: block !important; }
-        }
-        /* 모바일 버전: 네비게이션 버튼 노출 */
-        @media (max-width: 767px) {
-            .calendar-pc-container { display: none; } /* 마이페이지 내 고정 달력 숨김 */
-        }
     </style>
 </head>
 <body>
@@ -147,7 +132,7 @@
         <button id="btn-auth" class="nav-btn active" onclick="switchTab('auth')">LOGIN</button>
         <button id="btn-order" class="nav-btn" onclick="switchTab('order')">ORDER</button>
         <button id="btn-check" class="nav-btn" onclick="switchTab('check')">TICKET</button>
-        <button id="btn-calendar-nav" class="nav-btn" onclick="switchTab('calendar')">CALENDAR</button>
+        <button id="btn-calendar" class="nav-btn" onclick="switchTab('calendar')">CALENDAR</button>
         <button id="btn-mypage" class="nav-btn" onclick="switchTab('mypage')">MY PAGE</button>
         <button id="btn-admin" class="nav-btn admin-mode" onclick="switchTab('admin')" style="display:none;">ADMIN</button>
     </div>
@@ -191,10 +176,9 @@
         </div>
 
         <div id="section-calendar" class="section">
-            <h1>PARTY CALENDAR</h1>
+            <h1>CALENDAR</h1>
             <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
-            <div class="calendar-grid" id="mainCalendarView">
-                </div>
+            <div class="calendar-grid" id="mainCalendarView"></div>
             <p style="font-size: 0.7rem; color: #555; text-align: center; margin-top: 15px;">티켓이 승인되면 달력에 자동으로 표시됩니다.</p>
         </div>
 
@@ -225,11 +209,6 @@
                 </div>
             </div>
 
-            <div class="calendar-pc-container">
-                <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
-                <div class="calendar-grid" id="pcMyCalendar"></div>
-            </div>
-
             <div class="mypage-sub-title">누가 오나요? (참석자 미리보기)</div>
             <div class="attendee-preview">
                 <div class="attendee-list" id="attendeeList"></div>
@@ -247,10 +226,6 @@
                 <div class="menu-item" onclick="toggleNoti()">
                     <span>알림 설정 및 내역</span>
                     <span class="menu-icon">🔔</span>
-                </div>
-                <div class="menu-item" onclick="alert('준비 중인 기능입니다.')">
-                    <span>개인정보 수정</span>
-                    <span class="menu-icon">⚙️</span>
                 </div>
                 <button class="btn btn-alt" style="margin-top:20px; border-radius:12px;" onclick="handleLogout()">로그아웃</button>
             </div>
@@ -289,7 +264,6 @@
         
         if(myWatchingTicketId) autoCheckStatus();
         
-        // 추가: 자기소개 로드
         const savedBio = localStorage.getItem('clubNeinBio');
         if(savedBio) document.getElementById('bioText').innerText = savedBio;
     });
@@ -306,8 +280,7 @@
             document.getElementById('uEmail').value = user.email;
             
             updateMyStats(user.id);
-            renderCalendar(user.id, 'mainCalendarView'); // 모바일 전용 탭 달력
-            renderCalendar(user.id, 'pcMyCalendar');      // PC 마이페이지용 달력
+            renderCalendar(user.id, 'mainCalendarView');
             renderAttendees(); 
 
             if(user.email === 'rutckjs@gmail.com') {
@@ -341,7 +314,6 @@
         }
     }
 
-    // 수정: 여러 개의 달력 컨테이너에 대응하도록 변경
     async function renderCalendar(userId, containerId) {
         const cal = document.getElementById(containerId);
         if(!cal) return;
@@ -357,7 +329,7 @@
         for(let i=0; i<3; i++) cal.innerHTML += `<div></div>`; 
         for(let d=1; d<=30; d++) {
             const isParty = partyDays.includes(d);
-            const isToday = d === new Date().getDate(); // 실제 날짜 반영
+            const isToday = d === new Date().getDate();
             cal.innerHTML += `
                 <div class="cal-date ${isParty ? 'has-party' : ''} ${isToday ? 'today' : ''}">
                     ${d}
@@ -397,7 +369,6 @@
                 if(currentUser) {
                     updateMyStats(currentUser.id);
                     renderCalendar(currentUser.id, 'mainCalendarView');
-                    renderCalendar(currentUser.id, 'pcMyCalendar');
                 }
             }
         }).subscribe();
@@ -513,8 +484,7 @@
         const targetSection = document.getElementById('section-' + tab);
         if(targetSection) targetSection.classList.add('active');
         
-        // 탭 버튼 활성화 상태 표시 (calendar 탭 대응 포함)
-        const btnId = tab === 'calendar' ? 'btn-calendar-nav' : 'btn-' + (tab === 'auth' ? 'auth' : tab);
+        const btnId = 'btn-' + (tab === 'auth' ? 'auth' : tab);
         const targetBtn = document.getElementById(btnId);
         if(targetBtn) targetBtn.classList.add('active');
         
