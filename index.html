@@ -11,6 +11,7 @@
         :root { --neon: #ff0000; --bg: #050505; --card: #121212; --admin: #00ff41; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 0 20px 20px 20px; display: flex; flex-direction: column; align-items: center; }
         
+        /* 추가: 모든 페이지 고정 로고 헤더 */
         .fixed-logo-header { 
             position: sticky; 
             top: 0; 
@@ -35,6 +36,7 @@
 
         .container { background: var(--card); border: 1px solid #333; width: 100%; max-width: 450px; padding: 25px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; position: relative; }
         
+        /* 알림 및 인증 UI */
         .header-tools { width: 100%; max-width: 450px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; }
         .user-info { font-size: 0.75rem; color: #888; }
         .auth-btn { background: none; border: 1px solid #444; color: #ccc; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 0.7rem; }
@@ -63,6 +65,7 @@
         .qr-placeholder { padding: 30px; color: #ff3e3e; font-weight: bold; border: 2px dashed #ff3e3e; margin: 15px 0; border-radius: 10px; background: #fff5f5; }
         #qrArea { display: flex; justify-content: center; margin: 20px 0; min-height: 160px; }
 
+        /* 추가: 저장 버튼 스타일 */
         .btn-save { background: #000; color: #fff; margin-top: 15px; padding: 12px; font-size: 0.85rem; display: none; }
 
         .admin-item { border-bottom: 1px solid #333; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
@@ -70,6 +73,7 @@
         .approved-tag { background: #004411; color: #00ff41; border: 1px solid #00ff41; }
         .approve-btn { background: var(--admin); color: black; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
+        /* 마이페이지 전용 스타일 */
         .mypage-profile { text-align: center; margin-bottom: 30px; }
         .profile-img { width: 80px; height: 80px; background: linear-gradient(45deg, #333, var(--neon)); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 2px solid #555; }
         .mypage-stat { display: flex; justify-content: space-around; background: #1a1a1a; padding: 15px; border-radius: 15px; margin-bottom: 25px; border: 1px solid #333; }
@@ -82,6 +86,7 @@
         .menu-item span { font-size: 0.9rem; font-weight: bold; }
         .menu-icon { color: var(--neon); }
 
+        /* 달력 및 참석자 리스트 */
         .profile-bio { background: #1a1a1a; border: 1px dotted #444; padding: 15px; border-radius: 12px; font-size: 0.85rem; color: #bbb; margin-bottom: 20px; text-align: left; }
         .bio-edit-btn { font-size: 0.7rem; color: var(--neon); cursor: pointer; float: right; }
         
@@ -103,6 +108,31 @@
         .payment-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; box-sizing: border-box; }
         .pay-msg { font-size: 0.75rem; color: #fff; line-height: 1.5; margin-bottom: 10px; }
         .pay-btn { background: var(--neon); color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+
+        /* PC 버전 최적화: 달력을 마이페이지 내부에서 항상 노출 (PC용) */
+        @media (min-width: 768px) {
+            #btn-calendar-nav { display: none !important; } /* PC에선 네비게이션 버튼 숨김 */
+            .calendar-pc-container { display: block !important; }
+        }
+        /* 모바일 버전: 네비게이션 버튼 노출 */
+        @media (max-width: 767px) {
+            .calendar-pc-container { display: none; } /* 마이페이지 내 고정 달력 숨김 */
+        }
+
+        /* 추가: 피드 스타일 (Instagram Like) */
+        .feed-container { width: 100%; display: flex; flex-direction: column; gap: 20px; }
+        .feed-item { background: var(--card); border: 1px solid #333; border-radius: 15px; overflow: hidden; position: relative; }
+        .feed-header { padding: 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #222; }
+        .feed-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--neon); border: 1px solid #444; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.7rem; }
+        .feed-username { font-size: 0.85rem; font-weight: bold; color: #eee; }
+        .feed-image { width: 100%; aspect-ratio: 1/1; background: #222; display: flex; align-items: center; justify-content: center; font-size: 3rem; position: relative; }
+        .feed-image img { width: 100%; height: 100%; object-fit: cover; }
+        .feed-overlay-text { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.8)); padding: 20px 12px; box-sizing: border-box; }
+        .feed-actions { padding: 12px; display: flex; gap: 15px; font-size: 1.2rem; }
+        .feed-likes { padding: 0 12px; font-size: 0.8rem; font-weight: bold; color: #eee; }
+        .feed-caption { padding: 8px 12px 15px; font-size: 0.85rem; color: #ccc; line-height: 1.4; }
+        .feed-caption b { color: #fff; margin-right: 5px; }
+        .feed-tag { display: inline-block; background: #222; color: var(--neon); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-top: 5px; font-weight: bold; border: 1px solid #333; }
     </style>
 </head>
 <body>
@@ -129,16 +159,24 @@
     </div>
 
     <div class="nav">
-        <button id="btn-auth" class="nav-btn active" onclick="switchTab('auth')">LOGIN</button>
+        <button id="btn-feed" class="nav-btn active" onclick="switchTab('feed')">FEED</button>
+        <button id="btn-auth" class="nav-btn" onclick="switchTab('auth')">LOGIN</button>
         <button id="btn-order" class="nav-btn" onclick="switchTab('order')">ORDER</button>
         <button id="btn-check" class="nav-btn" onclick="switchTab('check')">TICKET</button>
-        <button id="btn-calendar" class="nav-btn" onclick="switchTab('calendar')">CALENDAR</button>
+        <button id="btn-calendar-nav" class="nav-btn" onclick="switchTab('calendar')">CALENDAR</button>
         <button id="btn-mypage" class="nav-btn" onclick="switchTab('mypage')">MY PAGE</button>
         <button id="btn-admin" class="nav-btn admin-mode" onclick="switchTab('admin')" style="display:none;">ADMIN</button>
     </div>
 
     <div class="container">
-        <div id="section-auth" class="section active">
+        <div id="section-feed" class="section active">
+            <h1>PARTY FEED</h1>
+            <div id="partyFeed" class="feed-container">
+                <div style="text-align:center; padding:50px; color:#555;">파티 목록을 불러오는 중...</div>
+            </div>
+        </div>
+
+        <div id="section-auth" class="section">
             <h1 id="authTitle">LOGIN</h1>
             <input type="email" id="authEmail" placeholder="이메일">
             <input type="password" id="authPassword" placeholder="비밀번호">
@@ -150,7 +188,7 @@
             <h1>CLUB NEIN</h1>
             <p id="orderLoginMsg" style="text-align:center; color:#ff3e3e; font-size:0.8rem; margin-bottom:15px;">로그인 후 신청 가능합니다.</p>
             <div id="orderForm" style="display:none;">
-                <select id="partySelect"><option value="">로딩 중...</option></select>
+                <select id="partySelect" onchange="updateFeedTarget(this.value)"><option value="">로딩 중...</option></select>
                 <input type="text" id="uName" placeholder="성함 / Name">
                 <input type="email" id="uEmail" placeholder="이메일 (신청 확인용)">
                 <input type="number" id="uQty" value="1" min="1">
@@ -176,9 +214,10 @@
         </div>
 
         <div id="section-calendar" class="section">
-            <h1>CALENDAR</h1>
+            <h1>PARTY CALENDAR</h1>
             <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
-            <div class="calendar-grid" id="mainCalendarView"></div>
+            <div class="calendar-grid" id="mainCalendarView">
+                </div>
             <p style="font-size: 0.7rem; color: #555; text-align: center; margin-top: 15px;">티켓이 승인되면 달력에 자동으로 표시됩니다.</p>
         </div>
 
@@ -209,6 +248,11 @@
                 </div>
             </div>
 
+            <div class="calendar-pc-container">
+                <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
+                <div class="calendar-grid" id="pcMyCalendar"></div>
+            </div>
+
             <div class="mypage-sub-title">누가 오나요? (참석자 미리보기)</div>
             <div class="attendee-preview">
                 <div class="attendee-list" id="attendeeList"></div>
@@ -226,6 +270,10 @@
                 <div class="menu-item" onclick="toggleNoti()">
                     <span>알림 설정 및 내역</span>
                     <span class="menu-icon">🔔</span>
+                </div>
+                <div class="menu-item" onclick="alert('준비 중인 기능입니다.')">
+                    <span>개인정보 수정</span>
+                    <span class="menu-icon">⚙️</span>
                 </div>
                 <button class="btn btn-alt" style="margin-top:20px; border-radius:12px;" onclick="handleLogout()">로그아웃</button>
             </div>
@@ -251,7 +299,7 @@
     document.addEventListener('DOMContentLoaded', async () => { 
         _supabase.auth.onAuthStateChange((event, session) => {
             checkUser(session?.user);
-            if (event === 'SIGNED_IN') switchTab('order');
+            if (event === 'SIGNED_IN') switchTab('feed'); // 피드로 이동
             if (event === 'SIGNED_OUT') switchTab('auth');
         });
 
@@ -264,6 +312,7 @@
         
         if(myWatchingTicketId) autoCheckStatus();
         
+        // 추가: 자기소개 로드
         const savedBio = localStorage.getItem('clubNeinBio');
         if(savedBio) document.getElementById('bioText').innerText = savedBio;
     });
@@ -280,7 +329,8 @@
             document.getElementById('uEmail').value = user.email;
             
             updateMyStats(user.id);
-            renderCalendar(user.id, 'mainCalendarView');
+            renderCalendar(user.id, 'mainCalendarView'); // 모바일 전용 탭 달력
+            renderCalendar(user.id, 'pcMyCalendar');      // PC 마이페이지용 달력
             renderAttendees(); 
 
             if(user.email === 'rutckjs@gmail.com') {
@@ -314,6 +364,7 @@
         }
     }
 
+    // 수정: 여러 개의 달력 컨테이너에 대응하도록 변경
     async function renderCalendar(userId, containerId) {
         const cal = document.getElementById(containerId);
         if(!cal) return;
@@ -329,7 +380,7 @@
         for(let i=0; i<3; i++) cal.innerHTML += `<div></div>`; 
         for(let d=1; d<=30; d++) {
             const isParty = partyDays.includes(d);
-            const isToday = d === new Date().getDate();
+            const isToday = d === new Date().getDate(); // 실제 날짜 반영
             cal.innerHTML += `
                 <div class="cal-date ${isParty ? 'has-party' : ''} ${isToday ? 'today' : ''}">
                     ${d}
@@ -369,6 +420,7 @@
                 if(currentUser) {
                     updateMyStats(currentUser.id);
                     renderCalendar(currentUser.id, 'mainCalendarView');
+                    renderCalendar(currentUser.id, 'pcMyCalendar');
                 }
             }
         }).subscribe();
@@ -484,6 +536,7 @@
         const targetSection = document.getElementById('section-' + tab);
         if(targetSection) targetSection.classList.add('active');
         
+        // 탭 버튼 활성화 상태 표시 (feed 탭 대응 포함)
         const btnId = 'btn-' + (tab === 'auth' ? 'auth' : tab);
         const targetBtn = document.getElementById(btnId);
         if(targetBtn) targetBtn.classList.add('active');
@@ -491,14 +544,54 @@
         if(tab === 'admin') loadAdminList();
     }
 
+    // 수정: 파티 목록을 피드 형태로도 렌더링
     async function fetchParties() {
-        const { data } = await _supabase.from('events').select('*');
+        const { data } = await _supabase.from('events').select('*').order('created_at', {ascending: false});
         if (data) {
             const sel = document.getElementById('partySelect');
+            const feed = document.getElementById('partyFeed');
+            
             sel.innerHTML = '<option value="">선택</option>';
-            data.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.title}</option>`);
+            feed.innerHTML = "";
+
+            data.forEach(p => {
+                // 셀렉트 박스 업데이트
+                sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+                
+                // 피드 아이템 생성
+                feed.innerHTML += `
+                    <div class="feed-item">
+                        <div class="feed-header">
+                            <div class="feed-avatar">9</div>
+                            <div class="feed-username">CLUB NEIN OFFICIAL</div>
+                        </div>
+                        <div class="feed-image">
+                            <img src="https://images.unsplash.com/photo-1514525253361-bee045839430?auto=format&fit=crop&q=80&w=800" alt="${p.title}">
+                            <div class="feed-overlay-text">
+                                <h3 style="margin:0; font-size:1.1rem; color:var(--neon);">${p.title}</h3>
+                            </div>
+                        </div>
+                        <div class="feed-actions">
+                            <span onclick="alert('Liked!')">❤️</span>
+                            <span onclick="switchTab('order'); document.getElementById('partySelect').value='${p.id}';">🎟️</span>
+                            <span onclick="alert('Shared!')">✈️</span>
+                        </div>
+                        <div class="feed-likes">좋아요 402개</div>
+                        <div class="feed-caption">
+                            <b>club_nein</b> 이번 파티는 ${p.title}에서 열립니다. 모두 함께 즐겨봐요! 🔥
+                            <br><span class="feed-tag">#CLUBNEIN #SEOUL_PARTY #TECHNO</span>
+                        </div>
+                    </div>
+                `;
+            });
         }
     }
+
+    // 추가: 피드에서 티켓 신청 버튼 누를 시 셀렉트박스 동기화
+    function updateFeedTarget(val) {
+        // 셀렉트박스 변경 시 추가 로직이 필요하다면 여기에 작성
+    }
+
     async function loadAdminList() {
         const { data } = await _supabase.from('registrations').select('*').order('created_at', {ascending: false});
         const listDiv = document.getElementById('adminList');
