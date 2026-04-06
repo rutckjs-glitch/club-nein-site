@@ -207,7 +207,6 @@
                 
                 <button class="btn" style="background:var(--admin); color:#000;" onclick="createAdminPost()">PUBLISH TO FEED</button>
             </div>
-            
             <div id="adminList"></div>
         </div>
 
@@ -362,7 +361,7 @@
                 text: m.content,
                 type: m.type
             }));
-            document.getElementById('stat-total-msgs').innerText = initialMsgs.length;
+            if(document.getElementById('stat-total-msgs')) document.getElementById('stat-total-msgs').innerText = initialMsgs.length;
             renderLiveStatuses();
         }
 
@@ -422,17 +421,16 @@
             document.getElementById('displayUserName').innerText = user.email.split('@')[0].toUpperCase();
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
+            
             if(isAdmin) {
                 document.getElementById('adminMenu').style.display = 'flex';
                 document.getElementById('adminAddBtn').style.display = 'flex';
-                document.getElementById('adminPostArea').style.display = 'block';
                 document.getElementById('statusGuidance').innerText = "ADMIN MODE: Unlimited Coins";
                 document.getElementById('myCashHeader').innerText = "🪙 ∞";
                 document.getElementById('stat-cash').innerText = "∞ (Admin)";
             } else {
                 document.getElementById('adminMenu').style.display = 'none';
                 document.getElementById('adminAddBtn').style.display = 'none';
-                document.getElementById('adminPostArea').style.display = 'none';
                 document.getElementById('statusGuidance').innerText = "Post your plan (Cost: 1,000 🪙)";
             }
         }
@@ -502,7 +500,7 @@
             preview.innerHTML = '<span style="color:#444;">미디어 미리보기</span>';
             return;
         }
-        preview.innerHTML = type === 'image' ? `<img src="${url}">` : `<video src="${url}" autoplay muted loop></video>`;
+        preview.innerHTML = type === 'image' ? `<img src="${url}" style="width:100%; max-height:100%; object-fit:contain;">` : `<video src="${url}" style="width:100%; max-height:100%;" autoplay muted loop></video>`;
     }
 
     async function createAdminPost() {
@@ -550,7 +548,7 @@
         feed.innerHTML = "";
 
         if(data) {
-            document.getElementById('stat-total-events').innerText = data.length;
+            if(document.getElementById('stat-total-events')) document.getElementById('stat-total-events').innerText = data.length;
             data.forEach(p => {
                 if(sel) sel.innerHTML += `<option value="${p.id}">${p.title}</option>`;
                 
@@ -576,6 +574,11 @@
         const list = document.getElementById('matchList');
         const users = [{ name: "ALICE", icon: "👩‍🦳" }, { name: "SATO", icon: "👨‍💻" }];
         list.innerHTML = users.map(u => `<div class="match-card"><div style="font-size:1.5rem;">${u.icon}</div><div style="flex:1;"><div style="font-weight:bold;">${u.name}</div></div><button onclick="alert('Added!')" style="background:var(--neon); border:none; border-radius:50%; width:30px; height:30px;">❤️</button></div>`).join('');
+    }
+
+    function toggleNoti() {
+        const box = document.getElementById('notiBox');
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
     }
 </script>
 </body>
