@@ -86,7 +86,7 @@
         .menu-item span { font-size: 0.9rem; font-weight: bold; }
         .menu-icon { color: var(--neon); }
 
-        /* 2. 추가 스타일: 달력 및 참석자 리스트 */
+        /* 달력 및 참석자 리스트 */
         .profile-bio { background: #1a1a1a; border: 1px dotted #444; padding: 15px; border-radius: 12px; font-size: 0.85rem; color: #bbb; margin-bottom: 20px; text-align: left; }
         .bio-edit-btn { font-size: 0.7rem; color: var(--neon); cursor: pointer; float: right; }
         
@@ -108,6 +108,16 @@
         .payment-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; box-sizing: border-box; }
         .pay-msg { font-size: 0.75rem; color: #fff; line-height: 1.5; margin-bottom: 10px; }
         .pay-btn { background: var(--neon); color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+
+        /* PC 버전 최적화: 달력을 마이페이지 내부에서 항상 노출 (PC용) */
+        @media (min-width: 768px) {
+            #btn-calendar-nav { display: none !important; } /* PC에선 네비게이션 버튼 숨김 */
+            .calendar-pc-container { display: block !important; }
+        }
+        /* 모바일 버전: 네비게이션 버튼 노출 */
+        @media (max-width: 767px) {
+            .calendar-pc-container { display: none; } /* 마이페이지 내 고정 달력 숨김 */
+        }
     </style>
 </head>
 <body>
@@ -137,6 +147,7 @@
         <button id="btn-auth" class="nav-btn active" onclick="switchTab('auth')">LOGIN</button>
         <button id="btn-order" class="nav-btn" onclick="switchTab('order')">ORDER</button>
         <button id="btn-check" class="nav-btn" onclick="switchTab('check')">TICKET</button>
+        <button id="btn-calendar-nav" class="nav-btn" onclick="switchTab('calendar')">CALENDAR</button>
         <button id="btn-mypage" class="nav-btn" onclick="switchTab('mypage')">MY PAGE</button>
         <button id="btn-admin" class="nav-btn admin-mode" onclick="switchTab('admin')" style="display:none;">ADMIN</button>
     </div>
@@ -179,6 +190,14 @@
             </div>
         </div>
 
+        <div id="section-calendar" class="section">
+            <h1>PARTY CALENDAR</h1>
+            <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
+            <div class="calendar-grid" id="mainCalendarView">
+                </div>
+            <p style="font-size: 0.7rem; color: #555; text-align: center; margin-top: 15px;">티켓이 승인되면 달력에 자동으로 표시됩니다.</p>
+        </div>
+
         <div id="section-mypage" class="section">
             <h1>MY PAGE</h1>
             <div class="mypage-profile">
@@ -206,14 +225,14 @@
                 </div>
             </div>
 
-            <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
-            <div class="calendar-grid" id="partyCalendar">
-                </div>
+            <div class="calendar-pc-container">
+                <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
+                <div class="calendar-grid" id="pcMyCalendar"></div>
+            </div>
 
             <div class="mypage-sub-title">누가 오나요? (참석자 미리보기)</div>
             <div class="attendee-preview">
-                <div class="attendee-list" id="attendeeList">
-                    </div>
+                <div class="attendee-list" id="attendeeList"></div>
                 <div class="payment-overlay">
                     <p class="pay-msg">전체 참석자 명단과 프로필을 보려면<br><b>클럽나인 멤버십</b>이 필요합니다.</p>
                     <button class="pay-btn" onclick="alert('결제 기능 준비 중입니다.')">멤버십 가입하기</button>
@@ -287,8 +306,9 @@
             document.getElementById('uEmail').value = user.email;
             
             updateMyStats(user.id);
-            renderCalendar(user.id); // 추가: 달력 렌더링
-            renderAttendees(); // 추가: 참석자 랜덤 렌더링
+            renderCalendar(user.id, 'mainCalendarView'); // 모바일 전용 탭 달력
+            renderCalendar(user.id, 'pcMyCalendar');      // PC 마이페이지용 달력
+            renderAttendees(); 
 
             if(user.email === 'rutckjs@gmail.com') {
                 document.getElementById('btn-admin').style.display = 'block';
@@ -305,7 +325,6 @@
         }
     }
 
-    // 마이페이지 통계 로직 추가
     async function updateMyStats(userId) {
         const { data, error } = await _supabase.from('registrations').select('status').eq('user_id', userId);
         if(data) {
@@ -314,7 +333,6 @@
         }
     }
 
-    // 2. 추가 기능: 자기소개 수정
     function editBio() {
         const newBio = prompt("자기소개를 입력해주세요 (최대 50자):", document.getElementById('bioText').innerText);
         if(newBio !== null && newBio.trim() !== "") {
@@ -323,25 +341,23 @@
         }
     }
 
-    // 2. 추가 기능: 달력 렌더링 (2026년 4월 기준 예시)
-    async function renderCalendar(userId) {
-        const cal = document.getElementById('partyCalendar');
+    // 수정: 여러 개의 달력 컨테이너에 대응하도록 변경
+    async function renderCalendar(userId, containerId) {
+        const cal = document.getElementById(containerId);
+        if(!cal) return;
         cal.innerHTML = "";
         
-        // 요일 헤더
         ['S','M','T','W','T','F','S'].forEach(d => {
             cal.innerHTML += `<div class="cal-day">${d}</div>`;
         });
 
-        // 사용자의 승인된 파티 날짜 가져오기 (샘플 날짜 매칭 로직)
         const { data: regs } = await _supabase.from('registrations').select('created_at, status').eq('user_id', userId).eq('status', 'approved');
         const partyDays = regs ? regs.map(r => new Date(r.created_at).getDate()) : [];
 
-        // 4월 1일~30일까지 생성 (2026년 4월 1일은 수요일)
-        for(let i=0; i<3; i++) cal.innerHTML += `<div></div>`; // 앞쪽 공백
+        for(let i=0; i<3; i++) cal.innerHTML += `<div></div>`; 
         for(let d=1; d<=30; d++) {
             const isParty = partyDays.includes(d);
-            const isToday = d === 7; // 오늘 날짜 예시
+            const isToday = d === new Date().getDate(); // 실제 날짜 반영
             cal.innerHTML += `
                 <div class="cal-date ${isParty ? 'has-party' : ''} ${isToday ? 'today' : ''}">
                     ${d}
@@ -351,22 +367,19 @@
         }
     }
 
-    // 2. 추가 기능: 참석자 랜덤 렌더링
     function renderAttendees() {
         const list = document.getElementById('attendeeList');
+        if(!list) return;
         const icons = ['👱‍♂️','👩‍🦰','👨‍🎤','👸','🤵','💃','🕺','🧛'];
         const names = ['KIM', 'LEE', 'TIYA', 'DENISE', 'JU', 'PARK', 'CHOI', 'JIN'];
-        
         list.innerHTML = "";
-        // 랜덤하게 섞어서 8명 노출
         const shuffled = names.sort(() => 0.5 - Math.random());
         shuffled.forEach((name, idx) => {
             list.innerHTML += `
                 <div class="attendee-card">
                     <div class="att-img">${icons[idx % icons.length]}</div>
                     <div class="att-name">${name}</div>
-                </div>
-            `;
+                </div>`;
         });
     }
 
@@ -374,22 +387,17 @@
         _supabase.channel('registrations_realtime')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations' }, (payload) => {
             const updated = payload.new;
-            console.log("데이터 업데이트 감지됨:", updated);
-
             if(currentUser && currentUser.email === 'rutckjs@gmail.com' && updated.status === 'approved') {
                 addNotification("🎟️ 티켓 승인 알림", `${updated.name}님의 신청이 승인되었습니다.`);
             }
-            
             if (updated.status === 'approved' && updated.qrid === myWatchingTicketId) {
                 addNotification("🎉 승인 완료!", "신청하신 티켓이 승인되었습니다! 지금 QR을 확인하세요.");
                 showPushNotification(updated.name, updated.qrid);
-                
-                if(document.getElementById('section-check').classList.contains('active')) {
-                    findTicket(); 
-                }
+                if(document.getElementById('section-check').classList.contains('active')) findTicket(); 
                 if(currentUser) {
                     updateMyStats(currentUser.id);
-                    renderCalendar(currentUser.id); // 상태 변화 시 달력 갱신
+                    renderCalendar(currentUser.id, 'mainCalendarView');
+                    renderCalendar(currentUser.id, 'pcMyCalendar');
                 }
             }
         }).subscribe();
@@ -398,9 +406,7 @@
     async function autoCheckStatus() {
         const { data } = await _supabase.from('registrations').select('status').eq('qrid', myWatchingTicketId).single();
         if(data && data.status === 'approved') {
-            if(myNotifications.length === 0) {
-                addNotification("🎉 티켓 승인됨", "이미 신청하신 티켓이 승인된 상태입니다.");
-            }
+            if(myNotifications.length === 0) addNotification("🎉 티켓 승인됨", "이미 신청하신 티켓이 승인된 상태입니다.");
         }
     }
 
@@ -416,7 +422,6 @@
         const newCount = myNotifications.filter(n => n.isNew).length;
         badge.innerText = newCount;
         badge.style.display = newCount > 0 ? 'block' : 'none';
-
         if (myNotifications.length === 0) {
             listDiv.innerHTML = '<div style="text-align:center; padding:30px; color:#666; font-size:0.85rem;">받은 알림이 없습니다.</div>';
             return;
@@ -424,8 +429,7 @@
         listDiv.innerHTML = myNotifications.map(n => `
             <div class="noti-item ${n.isNew ? 'new' : ''}">
                 <b>${n.title}</b><br>${n.message}<br><small>${n.time}</small>
-            </div>
-        `).join('');
+            </div>`).join('');
     }
 
     async function submitOrder() {
@@ -436,11 +440,7 @@
         const qty = parseInt(document.getElementById('uQty').value);
         if (!pId || !name || !email) return alert("정보를 모두 입력하세요.");
         const qrid = "NEIN-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-        
-        const { error } = await _supabase.from('registrations').insert([
-            { party_id: pId, name, email, qty, qrid, status: 'pending', user_id: currentUser.id }
-        ]);
-        
+        const { error } = await _supabase.from('registrations').insert([{ party_id: pId, name, email, qty, qrid, status: 'pending', user_id: currentUser.id }]);
         if (!error) { 
             alert(`신청 완료! ID: ${qrid}`);
             myWatchingTicketId = qrid;
@@ -448,9 +448,7 @@
             addNotification("📝 신청 완료", "티켓 신청이 접수되었습니다. 관리자 승인을 기다려주세요.");
             switchTab('check'); 
             if(currentUser) updateMyStats(currentUser.id);
-        } else {
-            alert("오류 발생: " + error.message);
-        }
+        } else alert("오류 발생: " + error.message);
     }
 
     async function findTicket() {
@@ -458,21 +456,16 @@
         const qridInput = document.getElementById('checkQRID').value.trim().toUpperCase();
         const email = emailInput || (currentUser ? currentUser.email : "");
         const qrid = qridInput || myWatchingTicketId;
-
         if(!qrid) return;
-
         const { data } = await _supabase.from('registrations').select('*').eq('qrid', qrid);
-        
         if (data && data.length > 0) {
             const ticket = data[0];
             myWatchingTicketId = ticket.qrid;
             localStorage.setItem('watchingTicketId', ticket.qrid);
-
             document.getElementById('ticketResult').style.display = 'block';
             document.getElementById('qrArea').innerHTML = ""; 
             const isApproved = ticket.status.toLowerCase() === 'approved';
             document.getElementById('resInfo').innerHTML = `<b>NAME:</b> ${ticket.name}<br><b>STATUS:</b> ${isApproved ? '✅ 승인완료' : '⏳ 승인대기'}`;
-            
             if (isApproved) {
                 document.getElementById('pendingMsg').style.display = 'none';
                 document.getElementById('btnSaveImage').style.display = 'block'; 
@@ -481,9 +474,7 @@
                 document.getElementById('pendingMsg').style.display = 'block'; 
                 document.getElementById('btnSaveImage').style.display = 'none'; 
             }
-        } else if (emailInput || qridInput) {
-            alert("일치하는 정보가 없습니다.");
-        }
+        } else if (emailInput || qridInput) alert("일치하는 정보가 없습니다.");
     }
 
     async function handleAuth() {
@@ -519,8 +510,14 @@
     function switchTab(tab) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('section-' + tab).classList.add('active');
-        document.getElementById('btn-' + (tab === 'auth' ? 'auth' : tab)).classList.add('active');
+        const targetSection = document.getElementById('section-' + tab);
+        if(targetSection) targetSection.classList.add('active');
+        
+        // 탭 버튼 활성화 상태 표시 (calendar 탭 대응 포함)
+        const btnId = tab === 'calendar' ? 'btn-calendar-nav' : 'btn-' + (tab === 'auth' ? 'auth' : tab);
+        const targetBtn = document.getElementById(btnId);
+        if(targetBtn) targetBtn.classList.add('active');
+        
         if(tab === 'admin') loadAdminList();
     }
 
@@ -551,23 +548,14 @@
     async function downloadTicketImage() {
         const element = document.getElementById('captureArea');
         const saveBtn = document.getElementById('btnSaveImage');
-        
         const originalText = saveBtn.innerText;
         saveBtn.innerText = "이미지 생성 중...";
         saveBtn.disabled = true;
         saveBtn.style.visibility = 'hidden';
-
         try {
-            const canvas = await html2canvas(element, {
-                backgroundColor: "#ffffff",
-                scale: 3, 
-                useCORS: true,
-                logging: false
-            });
-
+            const canvas = await html2canvas(element, { backgroundColor: "#ffffff", scale: 3, useCORS: true, logging: false });
             const imageData = canvas.toDataURL('image/png');
             const fileName = `CLUB_NEIN_TICKET_${myWatchingTicketId || 'PASS'}.png`;
-
             const link = document.createElement('a');
             if (typeof link.download !== 'undefined' && !/KAKAOTALK/i.test(navigator.userAgent)) {
                 link.href = imageData;
@@ -579,18 +567,8 @@
             } else {
                 const newWindow = window.open();
                 if (newWindow) {
-                    newWindow.document.write(`
-                        <html>
-                            <body style="margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000; color:#fff; font-family:sans-serif;">
-                                <p style="margin:20px; text-align:center;">이미지를 길게 눌러 [사진 저장]을 선택하세요.</p>
-                                <img src="${imageData}" style="max-width:90%; border:5px solid #fff; border-radius:10px;">
-                                <button onclick="window.close()" style="margin-top:20px; padding:12px 24px; background:#ff0000; color:#fff; border:none; border-radius:8px; font-weight:bold;">돌아가기</button>
-                            </body>
-                        </html>
-                    `);
-                } else {
-                    alert("팝업이 차단되었습니다. 설정에서 팝업을 허용하거나 직접 캡처해주세요.");
-                }
+                    newWindow.document.write(`<html><body style="margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000; color:#fff; font-family:sans-serif;"><p style="margin:20px; text-align:center;">이미지를 길게 눌러 [사진 저장]을 선택하세요.</p><img src="${imageData}" style="max-width:90%; border:5px solid #fff; border-radius:10px;"><button onclick="window.close()" style="margin-top:20px; padding:12px 24px; background:#ff0000; color:#fff; border:none; border-radius:8px; font-weight:bold;">돌아가기</button></body></html>`);
+                } else alert("팝업이 차단되었습니다. 설정에서 팝업을 허용하거나 직접 캡처해주세요.");
             }
         } catch (err) {
             console.error("저장 오류:", err);
