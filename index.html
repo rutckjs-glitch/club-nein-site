@@ -273,7 +273,7 @@
 
     let myNotifications = JSON.parse(localStorage.getItem('clubNeinInbox') || '[]');
     let currentUser = null;
-    let userCash = parseInt(localStorage.getItem('clubNeinCash') || '1000'); // 기본 코인 제공
+    let userCash = parseInt(localStorage.getItem('clubNeinCash') || '1000'); 
     let liveStatuses = JSON.parse(localStorage.getItem('clubNeinStatuses') || '[]');
 
     document.addEventListener('DOMContentLoaded', async () => { 
@@ -318,7 +318,13 @@
             document.getElementById('displayUserName').innerText = user.email.split('@')[0].toUpperCase();
             document.getElementById('myShareId').innerText = user.id.substr(0, 8);
             document.getElementById('myCashHeader').style.display = 'block';
-            if(user.email === 'rutckjs@gmail.com') document.getElementById('adminMenu').style.display = 'flex';
+            
+            // 관리자 계정 체크
+            if(user.email === 'rutckjs@gmail.com') {
+                document.getElementById('adminMenu').style.display = 'flex';
+                document.getElementById('stat-cash').innerText = "∞ (Unlimited)";
+                document.getElementById('myCashHeader').innerText = "🪙 ∞";
+            }
         } else {
             document.getElementById('displayUserName').innerText = "GUEST";
             document.getElementById('myCashHeader').style.display = 'none';
@@ -326,31 +332,41 @@
     }
 
     function updateCashUI() {
+        if(currentUser && currentUser.email === 'rutckjs@gmail.com') {
+            document.getElementById('myCashHeader').innerText = "🪙 ∞";
+            document.getElementById('stat-cash').innerText = "∞";
+            return;
+        }
         document.getElementById('myCashHeader').innerText = `🪙 ${userCash.toLocaleString()}`;
         document.getElementById('stat-cash').innerText = userCash.toLocaleString();
         if(document.getElementById('usableCashDisplay')) document.getElementById('usableCashDisplay').innerText = `-${userCash.toLocaleString()}원`;
         calculatePrice();
     }
 
-    // 추가: 실시간 텍스트 피드 게시
     function postLiveStatus() {
         if(!currentUser) return switchTab('auth');
         const input = document.getElementById('statusInput');
         const text = input.value.trim();
         if(text === "") return;
-        if(userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
 
-        userCash -= 1000;
+        // 관리자 무제한 체크
+        const isAdmin = currentUser.email === 'rutckjs@gmail.com';
+        if(!isAdmin && userCash < 1000) return alert("코인이 부족합니다! (필요: 1,000 🪙)");
+
+        if(!isAdmin) {
+            userCash -= 1000;
+            localStorage.setItem('clubNeinCash', userCash);
+        }
+        
         const newStatus = {
-            user: currentUser.email.split('@')[0].toUpperCase(),
+            user: currentUser.email.split('@')[0].toUpperCase() + (isAdmin ? ' (ADMIN)' : ''),
             text: text,
             time: new Date().getTime()
         };
         liveStatuses.unshift(newStatus);
-        if(liveStatuses.length > 20) liveStatuses.pop(); // 최대 20개 유지
+        if(liveStatuses.length > 20) liveStatuses.pop(); 
         
         localStorage.setItem('clubNeinStatuses', JSON.stringify(liveStatuses));
-        localStorage.setItem('clubNeinCash', userCash);
         
         input.value = "";
         updateCashUI();
@@ -361,32 +377,30 @@
     function renderLiveStatuses() {
         const list = document.getElementById('liveStatusList');
         list.innerHTML = liveStatuses.map(s => `
-            <div class="live-status-item">
+            <div class="live-status-item" style="${s.user.includes('ADMIN') ? 'border-color: var(--admin);' : ''}">
                 <div class="status-user">${s.user}</div>
                 <div class="status-text">${s.text}</div>
             </div>
         `).join('') || '<div style="color:#444; font-size:0.75rem;">첫 번째 소식을 남겨보세요!</div>';
     }
 
-    // 수정: 친구 추가 로직 (받는 사람에게 보상)
     function followUser(name, id) {
         if(!currentUser) return switchTab('auth');
-        
-        // 실제로는 서버 DB에서 처리해야 하지만 로직 구현을 위해 알림으로 대체
         alert(`${name}님을 친구로 추가했습니다! 이제 ${name}님에게 500 🪙 보상이 지급됩니다.`);
         addNotification("🤝 친구 추가", `${name}님을 친구 목록에 추가했습니다.`);
-        
-        // 테스트용: 내가 나를 추가했을 때 보상 확인 (실제 운영 시 본인 추가 차단 필요)
-        /*
-        userCash += 500;
-        localStorage.setItem('clubNeinCash', userCash);
-        updateCashUI();
-        */
     }
 
     function calculatePrice() {
         const qty = parseInt(document.getElementById('uQty')?.value || 1);
         const totalBase = 20000 * qty;
+        
+        // 관리자면 무조건 0원
+        if(currentUser && currentUser.email === 'rutckjs@gmail.com') {
+            if(document.getElementById('basePriceDisplay')) document.getElementById('basePriceDisplay').innerText = `${totalBase.toLocaleString()}원`;
+            if(document.getElementById('finalPriceDisplay')) document.getElementById('finalPriceDisplay').innerText = `0원 (ADMIN FREE)`;
+            return;
+        }
+
         const finalPrice = Math.max(0, totalBase - userCash);
         if(document.getElementById('basePriceDisplay')) document.getElementById('basePriceDisplay').innerText = `${totalBase.toLocaleString()}원`;
         if(document.getElementById('finalPriceDisplay')) document.getElementById('finalPriceDisplay').innerText = `${finalPrice.toLocaleString()}원`;
@@ -459,12 +473,10 @@
         list.innerHTML = myNotifications.map(n => `<div style="padding:12px; border-bottom:1px solid #222; font-size:0.75rem;"><b>${n.title}</b><br>${n.msg}</div>`).join('');
     }
 
-    // 기존 캘린더 렌더링 함수 (수정 없이 호출됨)
     async function renderCalendar(userId, containerId) {
         const cal = document.getElementById(containerId);
         if(!cal) return;
         cal.innerHTML = "캘린더 데이터를 불러오는 중...";
-        // ... (실제 구현 시 기존 캘린더 렌더링 로직 위치)
     }
 </script>
 </body>
