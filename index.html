@@ -340,28 +340,76 @@
         loadAdminList(); 
     }
 
-    /* 추가 기능: 티켓 이미지 다운로드 */
+    // --- 기존 기능 유지 ---
     async function downloadTicketImage() {
         const element = document.getElementById('captureArea');
         const saveBtn = document.getElementById('btnSaveImage');
-        
-        // 캡처 시에는 버튼이 보이지 않도록 함
         saveBtn.style.visibility = 'hidden';
-
-        html2canvas(element, {
-            backgroundColor: "#ffffff",
-            scale: 2 // 화질 향상
-        }).then(canvas => {
+        html2canvas(element, { backgroundColor: "#ffffff", scale: 2 }).then(canvas => {
             const link = document.createElement('a');
             link.download = `CLUB_NEIN_TICKET_${myWatchingTicketId}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
-            
             saveBtn.style.visibility = 'visible';
         }).catch(err => {
             console.error("캡처 실패:", err);
             saveBtn.style.visibility = 'visible';
         });
+    }
+
+    // --- 추가 보완 로직 (모바일/인앱 브라우저 저장 강제 지원) ---
+    async function downloadTicketImage() {
+        const element = document.getElementById('captureArea');
+        const saveBtn = document.getElementById('btnSaveImage');
+        
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = "이미지 생성 중...";
+        saveBtn.disabled = true;
+        saveBtn.style.visibility = 'hidden';
+
+        try {
+            const canvas = await html2canvas(element, {
+                backgroundColor: "#ffffff",
+                scale: 3, 
+                useCORS: true,
+                logging: false
+            });
+
+            const imageData = canvas.toDataURL('image/png');
+            const fileName = `CLUB_NEIN_TICKET_${myWatchingTicketId || 'PASS'}.png`;
+
+            const link = document.createElement('a');
+            if (typeof link.download !== 'undefined' && !/KAKAOTALK/i.test(navigator.userAgent)) {
+                link.href = imageData;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                alert("갤러리 또는 파일함에 저장이 시작되었습니다.");
+            } else {
+                const newWindow = window.open();
+                if (newWindow) {
+                    newWindow.document.write(`
+                        <html>
+                            <body style="margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000; color:#fff; font-family:sans-serif;">
+                                <p style="margin:20px; text-align:center;">이미지를 길게 눌러 [사진 저장]을 선택하세요.</p>
+                                <img src="${imageData}" style="max-width:90%; border:5px solid #fff; border-radius:10px;">
+                                <button onclick="window.close()" style="margin-top:20px; padding:12px 24px; background:#ff0000; color:#fff; border:none; border-radius:8px; font-weight:bold;">돌아가기</button>
+                            </body>
+                        </html>
+                    `);
+                } else {
+                    alert("팝업이 차단되었습니다. 설정에서 팝업을 허용하거나 직접 캡처해주세요.");
+                }
+            }
+        } catch (err) {
+            console.error("저장 오류:", err);
+            alert("이미지 생성에 실패했습니다. 화면을 직접 캡처해주세요.");
+        } finally {
+            saveBtn.innerText = originalText;
+            saveBtn.disabled = false;
+            saveBtn.style.visibility = 'visible';
+        }
     }
 </script>
 </body>
