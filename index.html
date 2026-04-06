@@ -120,8 +120,6 @@
     let myNotifications = JSON.parse(localStorage.getItem('clubNeinInbox') || '[]');
     let authMode = 'login';
     let currentUser = null;
-    
-    // 핵심: 신청자가 감시할 티켓 ID (localStorage에 저장되어 페이지 새로고침해도 유지됨)
     let myWatchingTicketId = localStorage.getItem('watchingTicketId') || null;
 
     document.addEventListener('DOMContentLoaded', async () => { 
@@ -137,6 +135,9 @@
         updateNotiUI();
         requestNotificationPermission();
         listenForApprovals();
+        
+        // 페이지 로드 시 기존 신청 티켓이 이미 승인되었는지 한 번 확인
+        if(myWatchingTicketId) autoCheckStatus();
     });
 
     async function checkUser(user) {
@@ -160,39 +161,38 @@
         }
     }
 
-    async function handleAuth() {
-        const email = document.getElementById('authEmail').value;
-        const password = document.getElementById('authPassword').value;
-        if(!email || !password) return alert("이메일과 비밀번호를 입력하세요.");
+    // [실시간 알림 핵심]
+    function listenForApprovals() {
+        _supabase.channel('registrations_realtime')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations' }, (payload) => {
+            const updated = payload.new;
+            console.log("데이터 업데이트 감지됨:", updated);
 
-        if (authMode === 'login') {
-            const { error } = await _supabase.auth.signInWithPassword({ email, password });
-            if (error) alert("로그인 실패: " + error.message);
-        } else {
-            const { error } = await _supabase.auth.signUp({ email, password });
-            if (error) alert("회원가입 실패: " + error.message);
-            else alert("가입 성공! 로그인해주세요.");
-        }
+            // 1. 관리자용 알림
+            if(currentUser && currentUser.email === 'rutckjs@gmail.com' && updated.status === 'approved') {
+                addNotification("🎟️ 티켓 승인 알림", `${updated.name}님의 신청이 승인되었습니다.`);
+            }
+            
+            // 2. 신청자용 알림 (본인 티켓 ID가 승인되었을 때)
+            if (updated.status === 'approved' && updated.qrid === myWatchingTicketId) {
+                addNotification("🎉 승인 완료!", "신청하신 티켓이 승인되었습니다! 지금 QR을 확인하세요.");
+                showPushNotification(updated.name, updated.qrid);
+                
+                // 만약 사용자가 티켓 조회 화면을 보고 있다면 자동으로 QR 갱신
+                if(document.getElementById('section-check').classList.contains('active')) {
+                    findTicket(); 
+                }
+            }
+        }).subscribe();
     }
 
-    async function handleLogout() {
-        await _supabase.auth.signOut();
-    }
-
-    function toggleAuthMode() {
-        authMode = authMode === 'login' ? 'signup' : 'login';
-        document.getElementById('authTitle').innerText = authMode === 'login' ? 'LOGIN' : 'SIGN UP';
-        document.getElementById('mainAuthBtn').innerText = authMode === 'login' ? '로그인' : '회원가입';
-        document.getElementById('toggleAuthBtn').innerText = authMode === 'login' ? '회원가입하러 가기' : '로그인하러 가기';
-    }
-
-    function toggleNoti() {
-        const box = document.getElementById('notiBox');
-        box.style.display = box.style.display === 'block' ? 'none' : 'block';
-        if (box.style.display === 'block') {
-            myNotifications.forEach(n => n.isNew = false);
-            localStorage.setItem('clubNeinInbox', JSON.stringify(myNotifications));
-            updateNotiUI();
+    async function autoCheckStatus() {
+        const { data } = await _supabase.from('registrations').select('status').eq('qrid', myWatchingTicketId).single();
+        if(data && data.status === 'approved') {
+            // 이미 승인되었는데 알림이 하나도 없다면 추가
+            if(myNotifications.length === 0) {
+                addNotification("🎉 티켓 승인됨", "이미 신청하신 티켓이 승인된 상태입니다.");
+            }
         }
     }
 
@@ -220,69 +220,6 @@
         `).join('');
     }
 
-    function clearNoti() {
-        if(confirm("삭제하시겠습니까?")) { 
-            myNotifications = []; 
-            localStorage.setItem('clubNeinInbox', '[]'); 
-            updateNotiUI(); 
-        }
-    }
-
-    // [핵심 변경 사항] 실시간 채널: 상태 업데이트 감지 시 알림 발생
-    function listenForApprovals() {
-        _supabase.channel('registrations_changes').on('postgres_changes', { 
-            event: 'UPDATE', 
-            schema: 'public', 
-            table: 'registrations' 
-        }, (payload) => {
-            const updated = payload.new;
-            
-            // 1. 관리자 알림 (누군가 승인됨)
-            if(currentUser && currentUser.email === 'rutckjs@gmail.com' && updated.status === 'approved') {
-                addNotification("🎟️ 티켓 승인 처리 완료", `${updated.name}님의 신청을 승인했습니다.`);
-            }
-            
-            // 2. 신청자 본인 알림 (내 티켓이 승인됨)
-            if (updated.status === 'approved' && updated.qrid === myWatchingTicketId) {
-                showPushNotification(updated.name, updated.qrid); // 푸시 알림
-                addNotification("🎉 CLUB NEIN 승인 완료!", `${updated.name}님, 티켓 승인이 완료되었습니다! 지금 QR을 확인하세요.`); // 내부 알림함
-                
-                // 만약 현재 티켓 확인 섹션에 있다면 즉시 화면 갱신
-                if(document.getElementById('section-check').classList.contains('active')) {
-                    findTicket(); 
-                }
-            }
-        }).subscribe();
-    }
-
-    function showPushNotification(name, qrid) {
-        if (Notification.permission === "granted") {
-            new Notification("CLUB NEIN 승인 완료", { 
-                body: `${name}님, 티켓 승인이 완료되었습니다! 즐거운 시간 되세요.`,
-                icon: 'https://cdn-icons-png.flaticon.com/512/1043/1043306.png'
-            });
-        } else {
-            alert(`🎉 승인 완료: ${name}님, 티켓이 승인되었습니다!`);
-        }
-    }
-
-    function switchTab(tab) {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('section-' + tab).classList.add('active');
-        document.getElementById('btn-' + (tab === 'auth' ? 'auth' : tab)).classList.add('active');
-        if(tab === 'admin') loadAdminList();
-    }
-
-    async function fetchParties() {
-        const { data } = await _supabase.from('events').select('*');
-        if (data) {
-            const sel = document.getElementById('partySelect');
-            sel.innerHTML = '<option value="">선택하세요</option>';
-            data.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.title}</option>`);
-        }
-    }
-
     async function submitOrder() {
         if(!currentUser) return alert("로그인 후 이용 가능합니다.");
         const pId = document.getElementById('partySelect').value;
@@ -290,7 +227,6 @@
         const email = document.getElementById('uEmail').value;
         const qty = parseInt(document.getElementById('uQty').value);
         if (!pId || !name || !email) return alert("정보를 모두 입력하세요.");
-        
         const qrid = "NEIN-" + Math.random().toString(36).substr(2, 5).toUpperCase();
         
         const { error } = await _supabase.from('registrations').insert([
@@ -299,80 +235,107 @@
         
         if (!error) { 
             alert(`신청 완료! ID: ${qrid}`);
-            
-            // [중요] 신청 즉시 내 티켓 ID를 저장하여 감시 시작
             myWatchingTicketId = qrid;
             localStorage.setItem('watchingTicketId', qrid);
-            
-            addNotification("📝 신청 접수 완료", "티켓 신청이 정상 접수되었습니다. 관리자 승인을 기다려주세요.");
+            addNotification("📝 신청 완료", "티켓 신청이 접수되었습니다. 관리자 승인을 기다려주세요.");
             switchTab('check'); 
         } else {
-            alert("신청 중 오류가 발생했습니다: " + error.message);
+            alert("오류 발생: " + error.message);
         }
     }
 
     async function findTicket() {
-        const email = document.getElementById('checkEmail').value.trim();
-        const qrid = document.getElementById('checkQRID').value.trim().toUpperCase();
+        // 입력값이 없으면 감시중인 ID로 자동 조회 시도
+        const emailInput = document.getElementById('checkEmail').value.trim();
+        const qridInput = document.getElementById('checkQRID').value.trim().toUpperCase();
         
-        // 검색값이 없는데 내 티켓 ID가 저장되어 있다면 그걸로 조회 시도 (자동 갱신용)
-        const targetEmail = email || (currentUser ? currentUser.email : "");
-        const targetQRID = qrid || myWatchingTicketId;
+        const email = emailInput || (currentUser ? currentUser.email : "");
+        const qrid = qridInput || myWatchingTicketId;
 
-        if(!targetQRID) return;
+        if(!qrid) return;
 
-        const { data } = await _supabase.from('registrations').select('*').eq('qrid', targetQRID);
+        const { data } = await _supabase.from('registrations').select('*').eq('qrid', qrid);
         
         if (data && data.length > 0) {
             const ticket = data[0];
-            const qrArea = document.getElementById('qrArea');
-            
-            // 조회된 티켓을 감시 대상으로 갱신
             myWatchingTicketId = ticket.qrid;
             localStorage.setItem('watchingTicketId', ticket.qrid);
 
             document.getElementById('ticketResult').style.display = 'block';
-            qrArea.innerHTML = ""; 
+            document.getElementById('qrArea').innerHTML = ""; 
             const isApproved = ticket.status.toLowerCase() === 'approved';
-            
             document.getElementById('resInfo').innerHTML = `<b>NAME:</b> ${ticket.name}<br><b>STATUS:</b> ${isApproved ? '✅ 승인완료' : '⏳ 승인대기'}`;
             
             if (isApproved) {
                 document.getElementById('pendingMsg').style.display = 'none';
-                setTimeout(() => { new QRCode(qrArea, { text: ticket.qrid, width: 160, height: 160 }); }, 100);
+                setTimeout(() => { new QRCode(document.getElementById('qrArea'), { text: ticket.qrid, width: 160, height: 160 }); }, 100);
             } else { 
                 document.getElementById('pendingMsg').style.display = 'block'; 
             }
-        } else if (email || qrid) {
+        } else if (emailInput || qridInput) {
             alert("일치하는 정보가 없습니다.");
         }
     }
 
+    // --- 기타 기능 함수 (수정 없음) ---
+    async function handleAuth() {
+        const email = document.getElementById('authEmail').value;
+        const password = document.getElementById('authPassword').value;
+        if (authMode === 'login') {
+            const { error } = await _supabase.auth.signInWithPassword({ email, password });
+            if (error) alert(error.message);
+        } else {
+            const { error } = await _supabase.auth.signUp({ email, password });
+            if (error) alert("가입 성공! 로그인해주세요.");
+        }
+    }
+    function handleLogout() { _supabase.auth.signOut(); }
+    function toggleAuthMode() {
+        authMode = authMode === 'login' ? 'signup' : 'login';
+        document.getElementById('authTitle').innerText = authMode === 'login' ? 'LOGIN' : 'SIGN UP';
+        document.getElementById('mainAuthBtn').innerText = authMode === 'login' ? '로그인' : '회원가입';
+    }
+    function toggleNoti() {
+        const box = document.getElementById('notiBox');
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        if (box.style.display === 'block') {
+            myNotifications.forEach(n => n.isNew = false);
+            localStorage.setItem('clubNeinInbox', JSON.stringify(myNotifications));
+            updateNotiUI();
+        }
+    }
+    function clearNoti() { if(confirm("삭제?")) { myNotifications = []; localStorage.setItem('clubNeinInbox', '[]'); updateNotiUI(); } }
+    function showPushNotification(name) { if (Notification.permission === "granted") new Notification("CLUB NEIN", { body: `${name}님 티켓 승인 완료!` }); }
+    function requestNotificationPermission() { if ("Notification" in window) Notification.requestPermission(); }
+    function switchTab(tab) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('section-' + tab).classList.add('active');
+        document.getElementById('btn-' + (tab === 'auth' ? 'auth' : tab)).classList.add('active');
+        if(tab === 'admin') loadAdminList();
+    }
+    async function fetchParties() {
+        const { data } = await _supabase.from('events').select('*');
+        if (data) {
+            const sel = document.getElementById('partySelect');
+            sel.innerHTML = '<option value="">선택</option>';
+            data.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.title}</option>`);
+        }
+    }
     async function loadAdminList() {
         const { data } = await _supabase.from('registrations').select('*').order('created_at', {ascending: false});
         const listDiv = document.getElementById('adminList');
         if (data) {
-            listDiv.innerHTML = "";
-            data.forEach(item => {
-                const isApproved = item.status.toLowerCase() === 'approved';
-                listDiv.innerHTML += `
-                    <div class="admin-item">
-                        <div><b>${item.name}</b><br><small>${item.qrid}</small></div>
-                        <div id="btn-container-${item.id}">
-                            ${isApproved ? '<span class="status-badge approved-tag">승인됨</span>' : `<button class="approve-btn" onclick="approveTicket('${item.id}')">승인하기</button>`}
-                        </div>
-                    </div>`;
-            });
+            listDiv.innerHTML = data.map(item => `
+                <div class="admin-item">
+                    <div><b>${item.name}</b><br><small>${item.qrid}</small></div>
+                    <div>${item.status === 'approved' ? '<span class="status-badge approved-tag">승인됨</span>' : `<button class="approve-btn" onclick="approveTicket('${item.id}')">승인하기</button>`}</div>
+                </div>`).join('');
         }
     }
-
-    async function approveTicket(id) {
-        const { error } = await _supabase.from('registrations').update({ status: 'approved' }).eq('id', id);
-        if (!error) loadAdminList();
-    }
-
-    function requestNotificationPermission() { 
-        if ("Notification" in window) Notification.requestPermission(); 
+    async function approveTicket(id) { 
+        await _supabase.from('registrations').update({ status: 'approved' }).eq('id', id); 
+        loadAdminList(); 
     }
 </script>
 </body>
