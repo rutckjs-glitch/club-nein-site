@@ -6,6 +6,7 @@
     <title>CLUB NEIN | TICKETING</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { --neon: #ff0000; --bg: #050505; --card: #121212; --admin: #00ff41; }
         body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
@@ -39,6 +40,10 @@
         .ticket-res { background: white; color: black; border-radius: 20px; padding: 25px; text-align: center; margin-top: 20px; display: none; }
         .qr-placeholder { padding: 30px; color: #ff3e3e; font-weight: bold; border: 2px dashed #ff3e3e; margin: 15px 0; border-radius: 10px; background: #fff5f5; }
         #qrArea { display: flex; justify-content: center; margin: 20px 0; min-height: 160px; }
+
+        /* 추가: 저장 버튼 스타일 */
+        .btn-save { background: #000; color: #fff; margin-top: 15px; padding: 12px; font-size: 0.85rem; display: none; }
+
         .admin-item { border-bottom: 1px solid #333; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
         .status-badge { font-size: 0.75rem; padding: 6px 12px; border-radius: 6px; font-weight: bold; }
         .approved-tag { background: #004411; color: #00ff41; border: 1px solid #00ff41; }
@@ -97,11 +102,15 @@
             <input type="email" id="checkEmail" placeholder="신청 이메일">
             <input type="text" id="checkQRID" placeholder="QR ID (예: NEIN-XXXXX)">
             <button class="btn" onclick="findTicket()">조회하기 / SEARCH</button>
+            
             <div id="ticketResult" class="ticket-res">
-                <div style="font-weight: 900; border-bottom: 2px solid #ddd; padding-bottom: 8px; margin-bottom: 15px;">CLUB NEIN PASS</div>
-                <div id="resInfo" style="text-align: left; font-size: 0.85rem; line-height: 1.7;"></div>
-                <div id="qrArea"></div>
+                <div id="captureArea">
+                    <div style="font-weight: 900; border-bottom: 2px solid #ddd; padding-bottom: 8px; margin-bottom: 15px;">CLUB NEIN PASS</div>
+                    <div id="resInfo" style="text-align: left; font-size: 0.85rem; line-height: 1.7;"></div>
+                    <div id="qrArea"></div>
+                </div>
                 <div id="pendingMsg" class="qr-placeholder">승인 대기 중</div>
+                <button id="btnSaveImage" class="btn btn-save" onclick="downloadTicketImage()">티켓 이미지로 저장 / SAVE IMAGE</button>
             </div>
         </div>
 
@@ -136,7 +145,6 @@
         requestNotificationPermission();
         listenForApprovals();
         
-        // 페이지 로드 시 기존 신청 티켓이 이미 승인되었는지 한 번 확인
         if(myWatchingTicketId) autoCheckStatus();
     });
 
@@ -161,24 +169,20 @@
         }
     }
 
-    // [실시간 알림 핵심]
     function listenForApprovals() {
         _supabase.channel('registrations_realtime')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'registrations' }, (payload) => {
             const updated = payload.new;
             console.log("데이터 업데이트 감지됨:", updated);
 
-            // 1. 관리자용 알림
             if(currentUser && currentUser.email === 'rutckjs@gmail.com' && updated.status === 'approved') {
                 addNotification("🎟️ 티켓 승인 알림", `${updated.name}님의 신청이 승인되었습니다.`);
             }
             
-            // 2. 신청자용 알림 (본인 티켓 ID가 승인되었을 때)
             if (updated.status === 'approved' && updated.qrid === myWatchingTicketId) {
                 addNotification("🎉 승인 완료!", "신청하신 티켓이 승인되었습니다! 지금 QR을 확인하세요.");
                 showPushNotification(updated.name, updated.qrid);
                 
-                // 만약 사용자가 티켓 조회 화면을 보고 있다면 자동으로 QR 갱신
                 if(document.getElementById('section-check').classList.contains('active')) {
                     findTicket(); 
                 }
@@ -189,7 +193,6 @@
     async function autoCheckStatus() {
         const { data } = await _supabase.from('registrations').select('status').eq('qrid', myWatchingTicketId).single();
         if(data && data.status === 'approved') {
-            // 이미 승인되었는데 알림이 하나도 없다면 추가
             if(myNotifications.length === 0) {
                 addNotification("🎉 티켓 승인됨", "이미 신청하신 티켓이 승인된 상태입니다.");
             }
@@ -245,10 +248,8 @@
     }
 
     async function findTicket() {
-        // 입력값이 없으면 감시중인 ID로 자동 조회 시도
         const emailInput = document.getElementById('checkEmail').value.trim();
         const qridInput = document.getElementById('checkQRID').value.trim().toUpperCase();
-        
         const email = emailInput || (currentUser ? currentUser.email : "");
         const qrid = qridInput || myWatchingTicketId;
 
@@ -268,16 +269,17 @@
             
             if (isApproved) {
                 document.getElementById('pendingMsg').style.display = 'none';
+                document.getElementById('btnSaveImage').style.display = 'block'; // 버튼 보이기
                 setTimeout(() => { new QRCode(document.getElementById('qrArea'), { text: ticket.qrid, width: 160, height: 160 }); }, 100);
             } else { 
                 document.getElementById('pendingMsg').style.display = 'block'; 
+                document.getElementById('btnSaveImage').style.display = 'none'; // 버튼 숨기기
             }
         } else if (emailInput || qridInput) {
             alert("일치하는 정보가 없습니다.");
         }
     }
 
-    // --- 기타 기능 함수 (수정 없음) ---
     async function handleAuth() {
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
@@ -336,6 +338,30 @@
     async function approveTicket(id) { 
         await _supabase.from('registrations').update({ status: 'approved' }).eq('id', id); 
         loadAdminList(); 
+    }
+
+    /* 추가 기능: 티켓 이미지 다운로드 */
+    async function downloadTicketImage() {
+        const element = document.getElementById('captureArea');
+        const saveBtn = document.getElementById('btnSaveImage');
+        
+        // 캡처 시에는 버튼이 보이지 않도록 함
+        saveBtn.style.visibility = 'hidden';
+
+        html2canvas(element, {
+            backgroundColor: "#ffffff",
+            scale: 2 // 화질 향상
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `CLUB_NEIN_TICKET_${myWatchingTicketId}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            saveBtn.style.visibility = 'visible';
+        }).catch(err => {
+            console.error("캡처 실패:", err);
+            saveBtn.style.visibility = 'visible';
+        });
     }
 </script>
 </body>
