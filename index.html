@@ -85,6 +85,29 @@
         .menu-item:hover { border-color: var(--neon); background: #282828; }
         .menu-item span { font-size: 0.9rem; font-weight: bold; }
         .menu-icon { color: var(--neon); }
+
+        /* 2. 추가 스타일: 달력 및 참석자 리스트 */
+        .profile-bio { background: #1a1a1a; border: 1px dotted #444; padding: 15px; border-radius: 12px; font-size: 0.85rem; color: #bbb; margin-bottom: 20px; text-align: left; }
+        .bio-edit-btn { font-size: 0.7rem; color: var(--neon); cursor: pointer; float: right; }
+        
+        .mypage-sub-title { font-size: 0.9rem; font-weight: bold; color: #eee; margin: 20px 0 10px; border-left: 3px solid var(--neon); padding-left: 10px; }
+        
+        .calendar-grid { background: #111; border-radius: 12px; padding: 10px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; border: 1px solid #222; }
+        .cal-day { font-size: 0.65rem; text-align: center; padding: 8px 0; color: #666; }
+        .cal-date { height: 35px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.8rem; border-radius: 6px; position: relative; }
+        .cal-date.has-party { background: #2a0000; color: var(--neon); font-weight: bold; border: 1px solid #440000; }
+        .cal-date.today { border: 1px solid #666; }
+        .party-dot { width: 4px; height: 4px; background: var(--neon); border-radius: 50%; position: absolute; bottom: 3px; }
+
+        .attendee-preview { background: #111; border-radius: 12px; padding: 15px; border: 1px solid #222; position: relative; overflow: hidden; }
+        .attendee-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .attendee-card { min-width: 60px; text-align: center; }
+        .att-img { width: 40px; height: 40px; background: #333; border-radius: 50%; margin: 0 auto 5px; display: flex; align-items: center; justify-content: center; font-size: 1rem; border: 1px solid #444; }
+        .att-name { font-size: 0.65rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .payment-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; box-sizing: border-box; }
+        .pay-msg { font-size: 0.75rem; color: #fff; line-height: 1.5; margin-bottom: 10px; }
+        .pay-btn { background: var(--neon); color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -162,6 +185,10 @@
                 <div class="profile-img">👤</div>
                 <h3 id="displayUserName" style="margin:0;">GUEST</h3>
                 <p id="displayUserEmail" style="color:#888; font-size:0.8rem; margin:5px 0;">로그인이 필요합니다</p>
+                <div class="profile-bio" id="bioBox">
+                    <span class="bio-edit-btn" onclick="editBio()">수정</span>
+                    <span id="bioText">아직 자기소개가 없습니다. 멋진 첫인상을 남겨보세요!</span>
+                </div>
             </div>
 
             <div class="mypage-stat">
@@ -179,7 +206,21 @@
                 </div>
             </div>
 
-            <div class="mypage-menu">
+            <div class="mypage-sub-title">내 파티 일정 (April 2026)</div>
+            <div class="calendar-grid" id="partyCalendar">
+                </div>
+
+            <div class="mypage-sub-title">누가 오나요? (참석자 미리보기)</div>
+            <div class="attendee-preview">
+                <div class="attendee-list" id="attendeeList">
+                    </div>
+                <div class="payment-overlay">
+                    <p class="pay-msg">전체 참석자 명단과 프로필을 보려면<br><b>클럽나인 멤버십</b>이 필요합니다.</p>
+                    <button class="pay-btn" onclick="alert('결제 기능 준비 중입니다.')">멤버십 가입하기</button>
+                </div>
+            </div>
+
+            <div class="mypage-menu" style="margin-top:20px;">
                 <div class="menu-item" onclick="switchTab('check')">
                     <span>내 티켓 보관함</span>
                     <span class="menu-icon">🎫</span>
@@ -228,6 +269,10 @@
         listenForApprovals();
         
         if(myWatchingTicketId) autoCheckStatus();
+        
+        // 추가: 자기소개 로드
+        const savedBio = localStorage.getItem('clubNeinBio');
+        if(savedBio) document.getElementById('bioText').innerText = savedBio;
     });
 
     async function checkUser(user) {
@@ -242,6 +287,8 @@
             document.getElementById('uEmail').value = user.email;
             
             updateMyStats(user.id);
+            renderCalendar(user.id); // 추가: 달력 렌더링
+            renderAttendees(); // 추가: 참석자 랜덤 렌더링
 
             if(user.email === 'rutckjs@gmail.com') {
                 document.getElementById('btn-admin').style.display = 'block';
@@ -258,12 +305,69 @@
         }
     }
 
+    // 마이페이지 통계 로직 추가
     async function updateMyStats(userId) {
         const { data, error } = await _supabase.from('registrations').select('status').eq('user_id', userId);
         if(data) {
             document.getElementById('stat-total').innerText = data.length;
             document.getElementById('stat-approved').innerText = data.filter(d => d.status === 'approved').length;
         }
+    }
+
+    // 2. 추가 기능: 자기소개 수정
+    function editBio() {
+        const newBio = prompt("자기소개를 입력해주세요 (최대 50자):", document.getElementById('bioText').innerText);
+        if(newBio !== null && newBio.trim() !== "") {
+            document.getElementById('bioText').innerText = newBio;
+            localStorage.setItem('clubNeinBio', newBio);
+        }
+    }
+
+    // 2. 추가 기능: 달력 렌더링 (2026년 4월 기준 예시)
+    async function renderCalendar(userId) {
+        const cal = document.getElementById('partyCalendar');
+        cal.innerHTML = "";
+        
+        // 요일 헤더
+        ['S','M','T','W','T','F','S'].forEach(d => {
+            cal.innerHTML += `<div class="cal-day">${d}</div>`;
+        });
+
+        // 사용자의 승인된 파티 날짜 가져오기 (샘플 날짜 매칭 로직)
+        const { data: regs } = await _supabase.from('registrations').select('created_at, status').eq('user_id', userId).eq('status', 'approved');
+        const partyDays = regs ? regs.map(r => new Date(r.created_at).getDate()) : [];
+
+        // 4월 1일~30일까지 생성 (2026년 4월 1일은 수요일)
+        for(let i=0; i<3; i++) cal.innerHTML += `<div></div>`; // 앞쪽 공백
+        for(let d=1; d<=30; d++) {
+            const isParty = partyDays.includes(d);
+            const isToday = d === 7; // 오늘 날짜 예시
+            cal.innerHTML += `
+                <div class="cal-date ${isParty ? 'has-party' : ''} ${isToday ? 'today' : ''}">
+                    ${d}
+                    ${isParty ? '<div class="party-dot"></div>' : ''}
+                </div>
+            `;
+        }
+    }
+
+    // 2. 추가 기능: 참석자 랜덤 렌더링
+    function renderAttendees() {
+        const list = document.getElementById('attendeeList');
+        const icons = ['👱‍♂️','👩‍🦰','👨‍🎤','👸','🤵','💃','🕺','🧛'];
+        const names = ['KIM', 'LEE', 'TIYA', 'DENISE', 'JU', 'PARK', 'CHOI', 'JIN'];
+        
+        list.innerHTML = "";
+        // 랜덤하게 섞어서 8명 노출
+        const shuffled = names.sort(() => 0.5 - Math.random());
+        shuffled.forEach((name, idx) => {
+            list.innerHTML += `
+                <div class="attendee-card">
+                    <div class="att-img">${icons[idx % icons.length]}</div>
+                    <div class="att-name">${name}</div>
+                </div>
+            `;
+        });
     }
 
     function listenForApprovals() {
@@ -283,7 +387,10 @@
                 if(document.getElementById('section-check').classList.contains('active')) {
                     findTicket(); 
                 }
-                if(currentUser) updateMyStats(currentUser.id);
+                if(currentUser) {
+                    updateMyStats(currentUser.id);
+                    renderCalendar(currentUser.id); // 상태 변화 시 달력 갱신
+                }
             }
         }).subscribe();
     }
